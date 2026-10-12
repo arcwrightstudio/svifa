@@ -1,0 +1,79 @@
+{
+  "name": "@arcwrightstudio/svifa",
+  "version": "1.0.0",
+  "description": "A smooth scroll library for the page or any scrolling element: the same feel at every refresh rate, drawn between pixels, and out of the way of everything else.",
+  "keywords": [
+    "angular",
+    "astro",
+    "high refresh rate",
+    "javascript",
+    "lerp",
+    "scroll",
+    "scrolling",
+    "smooth scroll",
+    "smooth scrolling",
+    "smooth-scroll",
+    "smoothscroll",
+    "subpixel",
+    "svelte",
+    "trackpad",
+    "typescript",
+    "vue",
+    "wheel"
+  ],
+  "homepage": "https://github.com/arcwrightstudio/svifa#readme",
+  "bugs": {
+    "url": "https://github.com/arcwrightstudio/svifa/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arcwrightstudio/svifa.git"
+  },
+  "license": "MIT",
+  "author": "Arcwright Studio",
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "main": "./dist/svifa.cjs",
+  "module": "./dist/svifa.js",
+  "types": "./dist/svifa.d.ts",
+  "unpkg": "./dist/svifa.global.min.js",
+  "jsdelivr": "./dist/svifa.global.min.js",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/svifa.d.ts",
+        "default": "./dist/svifa.js"
+      },
+      "require": {
+        "types": "./dist/svifa.d.cts",
+        "default": "./dist/svifa.cjs"
+      }
+    },
+    "./svifa.css": "./svifa.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "svifa.css"
+  ],
+  "engines": {
+    "node": ">=14"
+  },
+  "scripts": {
+    "build": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsdown",
+    "typecheck": "tsc && tsc -p tests",
+    "test": "playwright test",
+    "prepublishOnly": "npm run typecheck && npm run build && npm test"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "tsdown": "0.23.1",
+    "typescript": "7.0.2"
+  }
+}

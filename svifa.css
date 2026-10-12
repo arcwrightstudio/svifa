@@ -1,0 +1,12 @@
+/* Svifa's stylesheet. Optional: without it everything works, except that a stopped Svifa leaves the keyboard and the scroll bar
+   free to move the scroller, and an iframe under the pointer can catch the wheel in the middle of a glide. */
+
+/* stopped (svifa.stop()): nothing moves the scroller until svifa.start() */
+.svifa-stopped {
+  overflow: hidden;
+}
+
+/* while a glide is under way, the wheel passes over embedded frames instead of being caught by them */
+.svifa-gliding iframe {
+  pointer-events: none;
+}

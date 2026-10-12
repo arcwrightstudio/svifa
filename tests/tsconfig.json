@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "isolatedDeclarations": false,
+    "declaration": false
+  },
+  "include": [".", "../playwright.config.ts", "../tsdown.config.ts"]
+}
