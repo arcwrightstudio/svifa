@@ -100,10 +100,11 @@ test.describe('living with everything else on the page', () => {
   })
 
   test('destroy leaves no class, listener or style behind', async ({ page }) => {
-    await open(page)
+    await open(page, '', '.travel { will-change: translate; }')
     const state = await page.evaluate(() => {
       const w = window as any
-      const g = new w.Svifa({ autoRaf: false })
+      document.body.firstElementChild!.classList.add('travel')
+      const g = new w.Svifa({ autoRaf: false, subpixel: '.travel' })
       w.frame(g)
       w.wheel(window, 333.3)
       w.frame(g, 60, 5)
@@ -112,11 +113,12 @@ test.describe('living with everything else on the page', () => {
       return {
         classes: root.className,
         rootStyle: root.getAttribute('style') ?? '',
+        translate: (document.querySelector('.travel') as HTMLElement).style.translate,
         prevented: w.wheel(window, 100),
         gliding: g.isGliding,
       }
     })
-    expect(state).toEqual({ classes: '', rootStyle: '', prevented: false, gliding: false })
+    expect(state).toEqual({ classes: '', rootStyle: '', translate: '', prevented: false, gliding: false })
   })
 })
 

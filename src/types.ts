@@ -76,6 +76,20 @@ export interface SvifaOptions {
   chain?: boolean
 
   /**
+   * The elements that travel with the scrolled content, to be drawn at its exact position, between whole pixels, while it glides: a
+   * CSS selector, a list of elements, or a function that returns them (asked again whenever the page's elements change).
+   *
+   * A browser draws a scrolled page only on whole pixels, so a slow glide would show as one-pixel hops. Svifa scrolls to the nearest
+   * whole pixel and moves these elements by the part of a pixel left over, which the GPU draws in between. Give each of them
+   * `will-change: translate` in your CSS so the GPU draws them from the start (scope the rule under `.svifa-subpixel`). List the
+   * blocks that scroll with the content (the top-level sections and the footer), never an element with `position: fixed` or an
+   * ancestor of one, and every sticky element inside a listed element: a sticky element is moved only while it travels with the page,
+   * never while it is held in place (Svifa warns once in the console about one it finds missing). An element's own `translate` is
+   * replaced while the content glides and put back when it rests.
+   */
+  subpixel?: string | Iterable<Element> | (() => Iterable<Element>)
+
+  /**
    * Follow the reader's reduced-motion setting: while it is on, the wheel is left to the browser and `scrollTo` moves at once.
    * @default true
    */

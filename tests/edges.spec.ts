@@ -222,17 +222,23 @@ test.describe('small things that should be exactly right', () => {
     expect(steps[2]).toBeLessThan(steps[1] * 1.5)
   })
 
-  test('target at rest is where the scroller is', async ({ page }) => {
-    await open(page)
+  test('target at rest is where the scroller is; an element keeps its own translate after a glide', async ({ page }) => {
+    await open(page, '<section class="move" style="height: 9000px; translate: 0 5px"></section>', '.move { will-change: translate; }')
     const result = await page.evaluate(() => {
       const w = window as any
-      const g = new w.Svifa({ autoRaf: false })
+      const section = document.querySelector('.move') as HTMLElement
+      section.style.translate = '0px 5px'
+      const g = new w.Svifa({ autoRaf: false, subpixel: '.move' })
       w.frame(g)
       w.wheel(window, 77.7)
-      while (g.isGliding) w.frame(g)
-      return { scroll: g.scroll, target: g.target }
+      let changed = false
+      while (g.isGliding) {
+        w.frame(g)
+        if (section.style.translate !== '0px 5px') changed = true
+      }
+      return { scroll: g.scroll, target: g.target, changed, translate: section.style.translate }
     })
-    expect(result).toEqual({ scroll: 78, target: 78 })
+    expect(result).toEqual({ scroll: 78, target: 78, changed: true, translate: '0px 5px' })
   })
 
   test('a turn too small to move the scroller sends no scrollend and no scroll report', async ({ page }) => {
@@ -266,4 +272,65 @@ test.describe('small things that should be exactly right', () => {
     })
     expect(result).toEqual({ y: 500, arrived: true })
   })
+})
+
+test.describe('the sub-pixel list', () => {
+  test('warns once about a sticky element inside a listed element that is not listed itself', async ({ page }) => {
+    await open(
+      page,
+      `<main><section class="move" style="height: 3000px"><div class="pin" style="position: sticky; top: 0; height: 50px"></div></section></main>`,
+      '.move { will-change: translate; }'
+    )
+    const warnings = await page.evaluate(async () => {
+      const w = window as any
+      const seen: unknown[][] = []
+      const warn = console.warn
+      console.warn = (...args: unknown[]) => seen.push(args)
+      w.g = new w.Svifa({ autoRaf: false, subpixel: '.move' })
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      console.warn = warn
+      return seen.map((args) => ({ text: String(args[0]), count: (args[1] as unknown[]).length }))
+    })
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0].text).toContain('sticky')
+    expect(warnings[0].count).toBe(1)
+  })
+
+  test('says nothing when the sticky element is listed too', async ({ page }) => {
+    await open(
+      page,
+      `<main><section class="move" style="height: 3000px"><div class="move" style="position: sticky; top: 0; height: 50px"></div></section></main>`,
+      '.move { will-change: translate; }'
+    )
+    const warnings = await page.evaluate(async () => {
+      const w = window as any
+      let seen = 0
+      const warn = console.warn
+      console.warn = () => seen++
+      w.g = new w.Svifa({ autoRaf: false, subpixel: '.move' })
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      console.warn = warn
+      return seen
+    })
+    expect(warnings).toBe(0)
+  })
+})
+
+test('at a device scale of 2, a first glide that learns the browser keeps whole pixels on its last frame still rests on the nearest place', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ deviceScaleFactor: 2, viewport: { width: 1280, height: 800 } })
+  const page = await context.newPage()
+  await open(page, '<main><section class="move" style="height: 9000px"></section></main>', '.move { will-change: translate; }')
+  const rest = await page.evaluate(() => {
+    const w = window as any
+    const g = new w.Svifa({ autoRaf: false, subpixel: '.move' })
+    w.frame(g)
+    g.scrollTo(200.3, { duration: 0.001 })
+    for (let i = 0; i < 20 && g.isGliding; i++) w.frame(g)
+    return window.scrollY
+  })
+  // 200.5 on a device-pixel grid, 200 where the browser keeps whole CSS pixels: never 201
+  expect([200, 200.5]).toContain(rest)
+  await context.close()
 })

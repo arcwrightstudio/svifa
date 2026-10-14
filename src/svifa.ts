@@ -1,4 +1,5 @@
 import { Scroller } from './scroller'
+import { Subpixel } from './subpixel'
 import { positionOf, resolve, reveal } from './target'
 import type { Axis, Easing, SvifaEvent, SvifaOptions, SvifaTarget, ScrollToOptions } from './types'
 import { takenInside, wheelDelta } from './wheel'
@@ -14,11 +15,12 @@ type Motion =
 type How = { lerp?: number; duration?: number; easing?: Easing; lock?: boolean }
 
 /** The options as Svifa uses them, every default filled in. */
-type Settings = Required<Omit<SvifaOptions, 'scroller' | 'duration' | 'native'>> & Pick<SvifaOptions, 'duration' | 'native'>
+type Settings = Required<Omit<SvifaOptions, 'scroller' | 'duration' | 'native' | 'subpixel'>> &
+  Pick<SvifaOptions, 'duration' | 'native' | 'subpixel'>
 /** The options in use, every default filled in (read only). */
 export type ResolvedOptions = Readonly<Settings>
 
-const CLASSES = ['svifa', 'svifa-gliding', 'svifa-stopped']
+const CLASSES = ['svifa', 'svifa-gliding', 'svifa-stopped', 'svifa-subpixel']
 
 // The keys that scroll a page or a box when nothing editable has the focus.
 const SCROLL_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' ']
@@ -51,12 +53,14 @@ export class Svifa {
   direction: -1 | 0 | 1 = 0
 
   private readonly area: Scroller
+  private readonly layer: Subpixel | null
   private readonly reduced: MediaQueryList | null
   private readonly listeners = new Map<SvifaEvent, Set<(svifa: Svifa) => void>>()
 
   private value: number // where the content is drawn
   private goal: number // where it is heading (wheel turns add up here)
   private motion: Motion | null = null
+  private settle: number | undefined // how close a lerp glide comes before it rests
   private written: number | null = null // where the browser put the scroller on Svifa's last move
   private fromScrollTo = false // the glide under way came from scrollTo
   private finish: ((arrived: boolean) => void) | null = null // settles scrollTo's promise
@@ -90,6 +94,7 @@ export class Svifa {
       nested: options.nested ?? true,
       native: options.native,
       chain: options.chain ?? true,
+      subpixel: options.subpixel,
       reducedMotion: options.reducedMotion ?? true,
       autoRaf: options.autoRaf ?? true,
     }
@@ -99,6 +104,10 @@ export class Svifa {
       throw new Error('Svifa: this scroller already has a Svifa. Destroy that one before creating another.')
     }
     installed.set(this.area.root, this)
+    // Drawing between pixels needs the translate property (every browser since 2022); without it, and for a right-to-left horizontal
+    // scroller, the browser's own drawing stands.
+    const translates = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('translate', '1px')
+    this.layer = options.subpixel && translates && !this.area.reversed ? new Subpixel(options.subpixel, this.area) : null
     // matchMedia is missing in some test environments (jsdom): motion is then taken as not reduced
     this.reduced =
       this.settings.reducedMotion && typeof window.matchMedia === 'function'
@@ -125,6 +134,13 @@ export class Svifa {
       this.keeper.observe(this.area.root, { attributes: true, attributeFilter: ['class'] })
     }
     this.mark()
+    // once the page has settled, a word to the developer if the subpixel list misses a sticky element it needs
+    if (this.layer) {
+      const later = typeof requestIdleCallback === 'function' ? requestIdleCallback : (run: () => void) => setTimeout(run, 500)
+      later(() => {
+        if (!this.destroyed) this.layer?.checkSticky()
+      })
+    }
   }
 
   // ---- what anyone may read
@@ -196,7 +212,8 @@ export class Svifa {
     }
     // an element inside a scrolling box of its own is first brought into view there, as a link to it would be
     if (typeof named !== 'number') reveal(named, this.area)
-    const found = typeof named === 'number' ? named : positionOf(named, this.area)
+    const found =
+      typeof named === 'number' ? named : positionOf(named, this.area, (element) => this.layer?.offsetOf(element) ?? 0)
     const goal = Math.min(Math.max(found + finiteOr(options.offset, 0), 0), limit)
 
     // a scroller that snaps is left to the browser, which puts every move on a snap point: there the move is made at once
@@ -280,7 +297,7 @@ export class Svifa {
 
     const aimed = motion.to
     this.draw()
-    // the end moved in this frame (the page turned out to end nearer): one more frame gets there
+    // the first move showed the browser's grid and the end moved onto it: one more frame gets there
     if (done && motion.to !== aimed) done = false
     // at rest the position is wherever the browser put the scroller (its own grid, or held short at an end), reported before the
     // last scroll event goes out so every listener sees where it stopped
@@ -307,6 +324,7 @@ export class Svifa {
     if (this.destroyed) return
     if (installed.get(this.area.root) === this) installed.delete(this.area.root)
     this.halt()
+    this.layer?.clear()
     this.destroyed = true
     if (this.frame) cancelAnimationFrame(this.frame)
     this.frame = 0
@@ -427,7 +445,7 @@ export class Svifa {
     this.area.measure()
   }
 
-  // The reader turned reduced motion on: a glide under way finishes at once.
+  // The reader turned reduced motion on or off: a glide under way finishes at once, and the subpixel class follows the setting.
   private onMotionSetting = () => {
     if (this.reduced?.matches && this.motion) {
       const finish = this.finish
@@ -435,6 +453,7 @@ export class Svifa {
       this.jumpTo(this.goal)
       finish?.(true)
     }
+    this.mark()
   }
 
   // ---- gliding
@@ -463,23 +482,28 @@ export class Svifa {
       this.origin = this.area.position
       this.moved = false
     }
+    this.layer?.begin(!this.motion)
+    const to = this.layer ? this.area.restingPlace(goal) : goal
     if (how.duration !== undefined) {
-      this.motion = { kind: 'timed', from: this.value, to: goal, duration: how.duration, easing: how.easing ?? easeOut, elapsed: 0 }
+      this.motion = { kind: 'timed', from: this.value, to, duration: how.duration, easing: how.easing ?? easeOut, elapsed: 0 }
     } else {
-      this.motion = { kind: 'lerp', to: goal, rate: (how.lerp ?? this.settings.lerp) * 60 }
+      this.motion = { kind: 'lerp', to, rate: (how.lerp ?? this.settings.lerp) * 60 }
     }
+    this.settle = this.layer?.settle
     this.mark()
     this.run(since)
   }
 
-  // Whether a lerp glide is there: once the browser would draw it on the same device pixel as its end.
+  // Whether a lerp glide is there: drawn between pixels, once what is left is too little to see; otherwise once the browser would
+  // draw it on the same device pixel as its end.
   private arrived(to: number) {
+    if (this.settle !== undefined) return Math.abs(to - this.value) <= this.settle
     return this.area.restingPlace(this.value) === this.area.restingPlace(to)
   }
 
   private draw() {
     this.quietEnd = true
-    this.area.moveTo(this.value)
+    const learned = this.area.moveTo(this.value)
     const actual = this.area.position
     // Held short of the place written, at the page's real end: the page ends nearer than it did when the glide began (its height is
     // not a whole pixel, or content went away). The glide ends where the page ends, and is never drawn past it.
@@ -490,6 +514,9 @@ export class Svifa {
     }
     this.written = actual
     if (actual !== this.origin) this.moved = true
+    this.layer?.place(this.value, actual)
+    // the browser turned out to keep whole CSS pixels: aim the glide under way at a place it can rest on
+    if (learned && this.layer && this.motion) this.motion.to = this.area.restingPlace(this.goal)
   }
 
   private arrive() {
@@ -497,6 +524,7 @@ export class Svifa {
     this.locked = false
     this.fromScrollTo = false
     this.velocity = 0
+    this.layer?.clear()
     this.mark()
     const finish = this.finish
     this.finish = null
@@ -519,6 +547,7 @@ export class Svifa {
     this.fromScrollTo = false
     this.written = null
     this.quietEnd = false
+    this.layer?.clear()
     this.value = this.goal = this.area.position
     this.mark()
     const finish = this.finish
@@ -555,14 +584,15 @@ export class Svifa {
     if (set) for (const listener of [...set]) listener(this)
   }
 
-  // The classes on the scroller's element: svifa (installed), svifa-gliding and svifa-stopped. toggle() with a state touches the
-  // attribute only when that class changes, so nothing else on the page is restyled and the keeper above never sees a change of
-  // Svifa's own.
+  // The classes on the scroller's element: svifa (installed), svifa-gliding, svifa-stopped, and svifa-subpixel while Svifa can draw
+  // between pixels (not while the reader asks for reduced motion, when it never glides). toggle() with a state touches the attribute
+  // only when that class changes, so nothing else on the page is restyled and the keeper above never sees a change of Svifa's own.
   private mark() {
     if (this.destroyed) return
     const list = this.area.root.classList
     list.toggle('svifa', true)
     list.toggle('svifa-gliding', this.motion !== null)
     list.toggle('svifa-stopped', this.stopped)
+    list.toggle('svifa-subpixel', this.layer !== null && !this.reduced?.matches)
   }
 }

@@ -17,14 +17,15 @@ export function resolve(target: SvifaTarget, scroller: Scroller): number | Eleme
 
 /**
  * The scroll position an element stands for: where its start lines up with the start of the scroller's visible area, less its own
- * `scroll-margin` and the scroller's `scroll-padding`, as the browser places it for a link to it.
+ * `scroll-margin` and the scroller's `scroll-padding`, as the browser places it for a link to it. `drawnOffset` says how far an
+ * element is drawn from where the browser alone would put it (Svifa's sub-pixel drawing), so the measurement is exact mid-glide.
  */
-export function positionOf(element: Element, scroller: Scroller): number {
+export function positionOf(element: Element, scroller: Scroller, drawnOffset: (element: Element) => number): number {
   const { horizontal, reversed } = scroller
   const box = element.getBoundingClientRect()
   const margin = Number.parseFloat(getComputedStyle(element)[side(horizontal, reversed, 'scrollMargin')]) || 0
   const padding = lengthOf(getComputedStyle(scroller.root)[side(horizontal, reversed, 'scrollPadding')], scroller.viewport)
-  const start = reversed ? scroller.edge - box.right : (horizontal ? box.left : box.top) - scroller.edge
+  const start = reversed ? scroller.edge - box.right : (horizontal ? box.left : box.top) - drawnOffset(element) - scroller.edge
   return scroller.position + start - margin - padding
 }
 
