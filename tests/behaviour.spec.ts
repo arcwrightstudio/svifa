@@ -104,7 +104,7 @@ test.describe('living with everything else on the page', () => {
     const state = await page.evaluate(() => {
       const w = window as any
       document.body.firstElementChild!.classList.add('travel')
-      const g = new w.Svifa({ autoRaf: false, subpixel: '.travel' })
+      const g = new w.Svifa({ autoRaf: false, subpixel: '.travel', anchors: true })
       w.frame(g)
       w.wheel(window, 333.3)
       w.frame(g, 60, 5)
@@ -330,6 +330,112 @@ test('a glide started in the same moment as a scroll of the browser’s own (a f
   expect(await page.evaluate(() => (window as any).g.isGliding)).toBe(true)
   expect((await settle(page)).at(-1)).toBe(2000)
   expect(await page.evaluate(() => (window as any).result)).toBe(true)
+})
+
+test.describe('same-page links (anchors)', () => {
+  const LINKS = `<a id="go" href="#far">far</a> <a id="away" href="/elsewhere#far">away</a> <a id="none" href="#nothing">none</a>
+     <div style="height: 3000px"></div><section id="far">Far</section><div class="tall"></div>`
+
+  // In the page: clicks a link as a reader would and answers whether Svifa took the click. After Svifa has seen it (it listens on
+  // the document), the browser is kept from following any link, so the test page stays where it is in every browser.
+  const setUp = () => {
+    const w = window as any
+    let taken = false
+    window.addEventListener('click', (event) => {
+      taken = event.defaultPrevented
+      event.preventDefault()
+    })
+    w.changes = [] as string[]
+    window.addEventListener('hashchange', (event) => w.changes.push(new URL(event.newURL).hash))
+    w.click = (id: string, init: MouseEventInit = {}) => {
+      document.getElementById(id)!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, detail: 1, ...init }))
+      return taken
+    }
+  }
+
+  test('glides to the place, puts the link in the address and sends hashchange; leaves other links alone', async ({ page }) => {
+    await open(page, LINKS)
+    await page.evaluate(setUp)
+    const state = await page.evaluate(async () => {
+      const w = window as any
+      w.g = new w.Svifa({ autoRaf: false, anchors: { offset: -20 } })
+      w.frame(w.g)
+      const length = history.length
+      const result = {
+        modified: w.click('go', { ctrlKey: true }),
+        otherPage: w.click('away'),
+        missing: w.click('none'),
+        link: w.click('go'),
+        gliding: w.g.isGliding,
+        target: w.g.target,
+        hash: location.hash,
+        entries: history.length - length,
+        focused: document.activeElement === document.getElementById('far'),
+        targeted: document.querySelector(':target')?.id ?? null,
+        changes: [] as string[],
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      result.changes = w.changes
+      return result
+    })
+    const far = await page.evaluate(() => document.getElementById('far')!.offsetTop - 20)
+    expect(state).toEqual({
+      modified: false,
+      otherPage: false,
+      missing: false,
+      link: true,
+      gliding: true,
+      target: far,
+      hash: '#far',
+      entries: 1,
+      focused: false,
+      targeted: null,
+      changes: ['#far'],
+    })
+    expect((await settle(page)).at(-1)).toBe(far)
+  })
+
+  test('pressed from the keyboard (a skip link), carries keyboard focus to the place without scrolling it', async ({ page }) => {
+    await open(page, LINKS)
+    await page.evaluate(setUp)
+    const state = await page.evaluate(() => {
+      const w = window as any
+      w.g = new w.Svifa({ autoRaf: false, anchors: true })
+      w.frame(w.g)
+      w.click('go', { detail: 0 })
+      const far = document.getElementById('far')!
+      const focused = { active: document.activeElement === far, tabindex: far.getAttribute('tabindex'), y: window.scrollY }
+      ;(document.getElementById('go') as HTMLElement).focus()
+      return { ...focused, after: far.getAttribute('tabindex') }
+    })
+    expect(state).toEqual({ active: true, tabindex: '-1', y: 0, after: null })
+  })
+
+  test('with reduced motion, jumps to the place at once', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await open(page, LINKS)
+    await page.evaluate(setUp)
+    const result = await page.evaluate(() => {
+      const w = window as any
+      w.g = new w.Svifa({ autoRaf: false, anchors: { offset: -20 } })
+      w.click('go')
+      return { y: window.scrollY, hash: location.hash, far: document.getElementById('far')!.offsetTop - 20 }
+    })
+    expect(result.y).toBe(result.far)
+    expect(result.hash).toBe('#far')
+  })
+
+  test('while stopped, a link moves and changes nothing', async ({ page }) => {
+    await open(page, LINKS)
+    await page.evaluate(setUp)
+    const result = await page.evaluate(() => {
+      const w = window as any
+      w.g = new w.Svifa({ autoRaf: false, anchors: true })
+      w.g.stop()
+      return { taken: w.click('go'), gliding: w.g.isGliding, y: window.scrollY, hash: location.hash }
+    })
+    expect(result).toEqual({ taken: true, gliding: false, y: 0, hash: '' })
+  })
 })
 
 test('a scrollTo asked for in the middle of a wheel glide, in the same moment as a jump of the browser’s own, is not taken over by it', async ({

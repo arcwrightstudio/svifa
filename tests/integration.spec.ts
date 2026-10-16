@@ -135,3 +135,41 @@ test.describe('svifa.css', () => {
     expect(result).toEqual({ y: 0, held: true })
   })
 })
+
+test.describe('same-page links, the rest of the rules', () => {
+  test('sends no popstate; leaves new-tab links, downloads and (for an element) places outside it to the browser', async ({ page }) => {
+    await open(
+      page,
+      `<a id="tab" href="#far" target="_blank">tab</a> <a id="file" href="#far" download>file</a> <a id="go" href="#far">far</a>
+       <a id="inside" href="#deep">deep</a>
+       <div id="box" style="height: 300px; overflow: auto"><div style="height: 1000px"></div><p id="deep">deep</p><div style="height: 1000px"></div></div>
+       <div style="height: 3000px"></div><section id="far">Far</section><div class="tall"></div>`
+    )
+    const result = await page.evaluate(async () => {
+      const w = window as any
+      let pops = 0
+      window.addEventListener('popstate', () => pops++)
+      let taken = false
+      window.addEventListener('click', (event) => {
+        taken = event.defaultPrevented
+        event.preventDefault()
+      })
+      const click = (id: string) => {
+        document.getElementById(id)!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, detail: 1 }))
+        return taken
+      }
+      const page = new w.Svifa({ autoRaf: false, anchors: true })
+      const tab = click('tab')
+      const file = click('file')
+      const link = click('go')
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      page.destroy()
+      const box = new w.Svifa({ autoRaf: false, anchors: true, scroller: document.getElementById('box') })
+      const outside = click('go')
+      const inside = click('inside')
+      box.destroy()
+      return { tab, file, link, pops, outside, inside }
+    })
+    expect(result).toEqual({ tab: false, file: false, link: true, pops: 0, outside: false, inside: true })
+  })
+})

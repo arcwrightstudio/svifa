@@ -90,6 +90,15 @@ export interface SvifaOptions {
   subpixel?: string | Iterable<Element> | (() => Iterable<Element>)
 
   /**
+   * Glide to same-page links (`href="#id"`, `"#"` or `"#top"`) when they are clicked, in place of the browser's jump. The link still
+   * goes into the address as a new history entry and `hashchange` is sent; pressed from the keyboard (a skip link), it also carries
+   * keyboard focus to the place. Pass `scrollTo` options to adjust every such glide, for example `{ offset: -80 }` under a sticky
+   * header, or give the targets `scroll-margin-top`, which Svifa honours as the browser does.
+   * @default false
+   */
+  anchors?: boolean | ScrollToOptions
+
+  /**
    * Follow the reader's reduced-motion setting: while it is on, the wheel is left to the browser and `scrollTo` moves at once.
    * @default true
    */

@@ -272,6 +272,34 @@ test.describe('small things that should be exactly right', () => {
     })
     expect(result).toEqual({ y: 500, arrived: true })
   })
+
+  test('a link to "#" from an address with no fragment sends hashchange; on an element scroller it is left to the page', async ({
+    page,
+  }) => {
+    await open(page, '<a id="top" href="#">top</a><div id="box" style="height: 300px; overflow: auto"><div style="height: 2000px"></div></div><div class="tall"></div>')
+    const result = await page.evaluate(async () => {
+      const w = window as any
+      let changes = 0
+      window.addEventListener('hashchange', () => changes++)
+      window.scrollTo({ top: 2000, behavior: 'instant' })
+      const page = new w.Svifa({ autoRaf: false, anchors: true })
+      const link = document.getElementById('top')!
+      const click = () => {
+        const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, detail: 1 })
+        link.dispatchEvent(event)
+        return event.defaultPrevented
+      }
+      const taken = click()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      page.destroy()
+      history.replaceState(null, '', location.pathname)
+      const box = new w.Svifa({ autoRaf: false, anchors: true, scroller: document.getElementById('box') })
+      const takenByBox = click()
+      box.destroy()
+      return { taken, changes, takenByBox }
+    })
+    expect(result).toEqual({ taken: true, changes: 1, takenByBox: false })
+  })
 })
 
 test.describe('the sub-pixel list', () => {

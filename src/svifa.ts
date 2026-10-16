@@ -28,12 +28,38 @@ const SCROLL_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp'
 // The Svifa on each scroller: one only, since two would each move it and each keep its own classes on it.
 const installed = new WeakMap<HTMLElement, Svifa>()
 
+// Gives keyboard focus to the place a link leads to, without scrolling: an element that cannot take focus takes it for as long as it
+// keeps it (tabindex -1 until it loses focus), so the next Tab carries on from there.
+function focusPlace(element: HTMLElement) {
+  if (!element.hasAttribute('tabindex') && element.tabIndex < 0) {
+    element.setAttribute('tabindex', '-1')
+    element.addEventListener('blur', () => element.removeAttribute('tabindex'), { once: true })
+  }
+  element.focus({ preventScroll: true })
+}
+
 // A number given as an option, or the default when it is missing or not a finite number (a lerp is kept between 0 and 1, a duration
 // above 0).
 const finiteOr = (value: number | undefined, fallback: number) => (Number.isFinite(value) ? (value as number) : fallback)
 const lerpOr = (value: number | undefined, fallback: number) =>
   Number.isFinite(value) && (value as number) > 0 ? Math.min(value as number, 1) : fallback
 const durationOr = (value: number | undefined) => (Number.isFinite(value) && (value as number) > 0 ? value : undefined)
+
+// The fragment of an address, '#' included, or null when it has none ('#' alone is a fragment, an empty one).
+const fragmentOf = (href: string) => {
+  const at = href.indexOf('#')
+  return at < 0 ? null : href.slice(at)
+}
+
+// A link's '#fragment' as the id it names; a malformed escape is taken as written.
+function decodeHash(hash: string) {
+  const raw = hash.slice(1)
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+}
 
 /**
  * Smooth scrolling for the page or any scrolling element. The wheel and the trackpad glide; touch, the keyboard, the scrollbar and
@@ -95,6 +121,7 @@ export class Svifa {
       native: options.native,
       chain: options.chain ?? true,
       subpixel: options.subpixel,
+      anchors: options.anchors ?? false,
       reducedMotion: options.reducedMotion ?? true,
       autoRaf: options.autoRaf ?? true,
     }
@@ -122,6 +149,7 @@ export class Svifa {
     events.addEventListener('touchstart', this.onTouch, { passive: true })
     events.addEventListener('pointerdown', this.onPointerDown as EventListener, { passive: true })
     events.addEventListener('keydown', this.onKey as EventListener, { passive: true })
+    if (this.settings.anchors) document.addEventListener('click', this.onClick)
     window.addEventListener('resize', this.onResize, { passive: true })
     // the reduced-motion setting can change while the page is open (older Safari only has addListener)
     if (this.reduced) {
@@ -337,6 +365,7 @@ export class Svifa {
     events.removeEventListener('touchstart', this.onTouch)
     events.removeEventListener('pointerdown', this.onPointerDown as EventListener)
     events.removeEventListener('keydown', this.onKey as EventListener)
+    document.removeEventListener('click', this.onClick)
     window.removeEventListener('resize', this.onResize)
     if (this.reduced) {
       if (typeof this.reduced.removeEventListener === 'function') this.reduced.removeEventListener('change', this.onMotionSetting)
@@ -401,6 +430,43 @@ export class Svifa {
     const target = event.target
     if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return
     this.halt()
+  }
+
+  // A same-page link (with the anchors option): glide to the place, and do what the browser's own jump does besides: put the link in
+  // the address as a new history entry, send hashchange, and (when the link was pressed from the keyboard, as a skip link is) carry
+  // keyboard focus to the place.
+  private onClick = (event: MouseEvent) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    const link = event.composedPath().find((node): node is HTMLAnchorElement => node instanceof HTMLAnchorElement)
+    if (!link || !link.hasAttribute('href') || link.hasAttribute('download')) return
+    if (link.target && link.target !== '_self') return
+    const url = new URL(link.href, location.href)
+    if (url.origin !== location.origin || url.pathname !== location.pathname || url.search !== location.search) return
+    // only a link to a place on this page: '#', '#top' or '#id'
+    if (!url.hash && !link.getAttribute('href')?.endsWith('#')) return
+    const id = decodeHash(url.hash)
+    const element = id ? document.getElementById(id) : null
+    // '#' and '#top' (when nothing has that id) are the top of the page, as the browser takes them; any other missing id is left to it,
+    // and so is the top of the page for a Svifa on an element
+    if (!element && ((id !== '' && id !== 'top') || !this.area.isPage)) return
+    // a place outside an element scroller is not this Svifa's to reach
+    if (element && !this.area.root.contains(element)) return
+
+    event.preventDefault()
+    const options = typeof this.settings.anchors === 'object' ? this.settings.anchors : {}
+    // stopped: the link moves nothing, as nothing else may (unless the anchors options force it)
+    if (this.stopped && !options.force) return
+    void this.scrollTo(element ?? 0, options)
+    const from = location.href
+    if (url.href !== from) {
+      history.pushState(history.state, '', url.href)
+      if (fragmentOf(url.href) !== fragmentOf(from)) {
+        // as the browser sends it: in a task of its own, after the address has changed
+        setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: from, newURL: url.href })))
+      }
+    }
+    // a click with no pointer behind it (Enter on the link) moves keyboard focus to the place
+    if (event.detail === 0 && element) focusPlace(element)
   }
 
   // ---- the browser's own scrolling
