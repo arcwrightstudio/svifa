@@ -1,7 +1,7 @@
 import { Scroller } from './scroller'
 import { Subpixel } from './subpixel'
 import { positionOf, resolve, reveal } from './target'
-import type { Axis, Easing, SvifaEvent, SvifaOptions, SvifaTarget, ScrollToOptions } from './types'
+import type { Axis, Easing, SvifaEvent, SvifaOptions, SvifaTarget, ScrollToOptions, TunableOptions } from './types'
 import { takenInside, wheelDelta } from './wheel'
 
 /** The curve a timed glide follows unless told otherwise: quick at first, settling softly (an exponential ease-out from 0 to 1). */
@@ -17,7 +17,7 @@ type How = { lerp?: number; duration?: number; easing?: Easing; lock?: boolean }
 /** The options as Svifa uses them, every default filled in. */
 type Settings = Required<Omit<SvifaOptions, 'scroller' | 'duration' | 'native' | 'subpixel'>> &
   Pick<SvifaOptions, 'duration' | 'native' | 'subpixel'>
-/** The options in use, every default filled in (read only). */
+/** The options in use, every default filled in (read only: change them with `configure`). */
 export type ResolvedOptions = Readonly<Settings>
 
 const CLASSES = ['svifa', 'svifa-gliding', 'svifa-stopped', 'svifa-subpixel']
@@ -217,7 +217,7 @@ export class Svifa {
     return this.settings.axis
   }
 
-  /** The options in use, every default filled in: a frozen copy. */
+  /** The options in use, every default filled in: a frozen copy (change them with `configure`). */
   get options(): ResolvedOptions {
     return Object.freeze({ ...this.settings })
   }
@@ -263,6 +263,37 @@ export class Svifa {
       this.glideTo(goal, how, true)
       this.finish = resolve
     })
+  }
+
+  /**
+   * Changes how Svifa feels while the page is open: `lerp`, `duration`, `easing`, `wheel`, `wheelSpeed`, `nested`, `native`, `chain`
+   * and `anchors`, each as described for the options. Each one given replaces the one in use, from the next glide or wheel turn;
+   * `duration: undefined` goes back to gliding by `lerp`. A number that is not a finite one leaves that option as it was. The other
+   * options belong to the scroller itself and are set when Svifa is made.
+   *
+   * @example
+   * svifa.configure({ lerp: 0.05 }) // slower and softer
+   * svifa.configure({ duration: 1.2, easing: (t) => 1 - (1 - t) ** 3 })
+   */
+  configure(changes: TunableOptions): void {
+    if (this.destroyed) return
+    const settings = this.settings
+    if ('lerp' in changes) settings.lerp = lerpOr(changes.lerp, settings.lerp)
+    if ('duration' in changes) {
+      settings.duration = changes.duration === undefined ? undefined : (durationOr(changes.duration) ?? settings.duration)
+    }
+    if ('easing' in changes) settings.easing = typeof changes.easing === 'function' ? changes.easing : easeOut
+    if ('wheel' in changes) settings.wheel = changes.wheel !== false
+    if ('wheelSpeed' in changes) settings.wheelSpeed = finiteOr(changes.wheelSpeed, settings.wheelSpeed)
+    if ('nested' in changes) settings.nested = changes.nested !== false
+    if ('native' in changes) settings.native = changes.native
+    if ('chain' in changes) settings.chain = changes.chain !== false
+    if ('anchors' in changes) {
+      const had = Boolean(settings.anchors)
+      settings.anchors = changes.anchors ?? false
+      if (!had && settings.anchors) document.addEventListener('click', this.onClick)
+      if (had && !settings.anchors) document.removeEventListener('click', this.onClick)
+    }
   }
 
   /**

@@ -111,6 +111,12 @@ export interface SvifaOptions {
   autoRaf?: boolean
 }
 
+/** The options `configure` can change while Svifa runs: how it feels, as opposed to what it scrolls. */
+export type TunableOptions = Pick<
+  SvifaOptions,
+  'lerp' | 'duration' | 'easing' | 'wheel' | 'wheelSpeed' | 'nested' | 'native' | 'chain' | 'anchors'
+>
+
 /** Options for one glide made with `scrollTo`. */
 export interface ScrollToOptions {
   /** Added to the target position, for example `-80` to stop short of a sticky header. @default 0 */
