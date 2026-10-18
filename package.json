@@ -8,6 +8,8 @@
     "high refresh rate",
     "javascript",
     "lerp",
+    "nextjs",
+    "react",
     "scroll",
     "scrolling",
     "smooth scroll",
@@ -51,15 +53,34 @@
         "default": "./dist/svifa.cjs"
       }
     },
+    "./react": {
+      "import": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
+      },
+      "require": {
+        "types": "./dist/react.d.cts",
+        "default": "./dist/react.cjs"
+      }
+    },
     "./svifa.css": "./svifa.css",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
+    "react",
     "svifa.css"
   ],
   "engines": {
     "node": ">=14"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   },
   "scripts": {
     "build": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsdown",
@@ -73,7 +94,15 @@
   "devDependencies": {
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "tsdown": "0.23.1",
     "typescript": "7.0.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
   }
 }

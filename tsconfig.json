@@ -13,7 +13,11 @@
     "isolatedDeclarations": true,
     "declaration": true,
     "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@arcwrightstudio/svifa": ["./src/index.ts"]
+    },
+    "jsx": "react-jsx"
   },
   "include": ["src"]
 }

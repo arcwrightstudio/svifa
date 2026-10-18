@@ -27,6 +27,17 @@ export default defineConfig([
     dts,
     outputOptions: (options, format) => (format === 'cjs' ? { ...options, exports: 'named' } : options),
   },
+  // the React entry: the core stays one import of '@arcwrightstudio/svifa', so a project holds one Svifa class whichever entry it
+  // uses; and it is a client component for frameworks with server components (Next.js)
+  {
+    ...shared,
+    entry: { react: 'src/react.ts' },
+    format: ['esm', 'cjs'],
+    platform: 'neutral',
+    dts,
+    deps: { neverBundle: ['react', '@arcwrightstudio/svifa'] },
+    banner: { js: "'use client'" },
+  },
   // for a plain <script> tag: window.Svifa, readable and minified (keepNames: the class is still called Svifa in devtools)
   ...[false, true].map(
     (minify): UserConfig => ({
