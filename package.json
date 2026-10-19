@@ -86,17 +86,21 @@
     "build": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsdown",
     "typecheck": "tsc && tsc -p tests",
     "test": "playwright test",
-    "prepublishOnly": "npm run typecheck && npm run build && npm test"
+    "check:package": "publint && attw --pack . --exclude-entrypoints svifa.css",
+    "prepublishOnly": "npm run typecheck && npm run build && npm test && npm run check:package",
+    "check:installs": "node scripts/check-installs.mjs"
   },
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "esbuild": "0.28.2",
+    "publint": "0.3.25",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "tsdown": "0.23.1",

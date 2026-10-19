@@ -2,8 +2,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 // A test for something only some engines have runs only there, so no engine reports it skipped. Chromium alone shows its real
 // scroll bars headless and has scroll-driven animations (@chromium-only); WebKit has no window.find to stand in for find in page
-// (@not-webkit).
-const CHROMIUM_ONLY = ['**/scrollbars.spec.ts']
+// (@not-webkit). The package's own tests use no browser, so they run once.
+const CHROMIUM_ONLY = ['**/scrollbars.spec.ts', '**/package.spec.ts']
 
 export default defineConfig({
   testDir: 'tests',
