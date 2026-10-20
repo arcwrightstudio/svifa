@@ -1,0 +1,67 @@
+# Contributing to Svifa
+
+Thank you for helping. Bug reports, fixes and improvements to the docs are all welcome.
+
+## Reporting a bug
+
+Open an issue with the bug form. The most useful report links to a page that shows the problem: open one of the
+[examples](./examples) on StackBlitz, change it until the problem shows, and paste the link. Say which browser and system you saw it
+in, and your display's refresh rate and scaling, since smooth scrolling depends on both.
+
+For a question, or to share a site that uses Svifa, start a [discussion](https://github.com/arcwrightstudio/svifa/discussions) instead.
+
+## Changing the code
+
+Development needs Node 22.18, 24.11, 26 or later.
+
+```sh
+npm ci                   # the tools (and npx playwright install, once, for the browsers)
+npm run typecheck        # the library, then the tests and the config files
+npm run build            # dist/: the ES module, the CommonJS file, the script builds, the React entry and the types
+npm test                 # the suite in Chromium, Firefox and WebKit, about a minute
+npm run check:package    # the exports and types as every module resolution reads them, and the CDN tags' pinned hashes
+npm run check:installs   # installs the packed package with npm, pnpm, Yarn 1 and 4 (Plug'n'Play), Bun and Deno; fails on warnings
+```
+
+`SVIFA_REACT_DIR=<a node_modules folder with another React> npx playwright test tests/react.spec.ts` runs the React entry's tests
+against another React version (React 18 is supported as well as 19).
+
+### How the code is laid out
+
+- `src/svifa.ts`: the `Svifa` class: options, input (wheel, keys, touch, anchors), the frame loop, the motion (a damped approach by
+  `lerp`, or a timed curve), what it reports (`scroll` events, one `scrollend` per glide, classes).
+- `src/scroller.ts`: the page or a scrolling element along one axis: reading and writing its position on the browser's pixel grid
+  (device pixels, or whole CSS pixels in browsers that keep those, learned from the first move), its end, snapping, overflow.
+- `src/subpixel.ts`: draws the part of a pixel the browser cannot scroll by as a `translate` on the chosen elements, holding sticky
+  elements still while they are held.
+- `src/target.ts`: what a `scrollTo` target names and the position it stands for (scroll-margin, scroll-padding, nested boxes).
+- `src/wheel.ts`: a wheel event in pixels, and whether an element inside the scroller takes it itself.
+- `src/types.ts`: the public types; their JSDoc is the reference editors show. `src/react.ts`: the React entry (`SmoothScroll`,
+  `useSvifa`), which imports the core by the package's own name (`tsconfig.json` maps it to `src/index.ts`).
+- `tests/`: one spec per area. `tests/setup.ts` loads the script build and steps Svifa frame by frame on a clock of the test's own
+  (`autoRaf: false`), so every run sees the same frames at any chosen refresh rate. A test for something only some engines have is
+  tagged (`@chromium-only`, `@not-webkit`) or listed in `playwright.config.ts`, so it runs only there and nothing is reported
+  skipped.
+
+### Rules every change follows
+
+- A fix comes with a test that fails without it. Write the test first, see it fail against the old code, then fix, and put the fault
+  back once more to see the test catch it.
+- Motion is judged in time, never in frames: every rule gives the same result at any refresh rate, from 60 to 1000 Hz
+  (`w.frame(g, hz)`). A test on the browser's own frames waits for what it checks, never for a number of frames.
+- Positions read back from the browser carry rounding (a float32 in Chromium); compare with the slop `scroller.ts` uses, not `===`.
+- A scroll Svifa did not make (a key, the scroll bar, a script, the browser) always wins over a glide under way.
+- No dependencies. Anything a browser from the last few years lacks is detected and left to the browser, never polyfilled.
+- Every exported function, method and accessor states its types (`isolatedDeclarations`): the declarations are written from the
+  source alone, so the published types are exactly what the code says.
+- esbuild runs an install script, approved by version in `allowScripts` in `package.json`. After updating esbuild, approve it again
+  with `npm install-scripts approve esbuild`.
+- The JSDoc in `src/`, `README.md` and `llms.txt` describe the same API and change with the code. A statement in any of them is
+  something a test or a measurement shows.
+
+Open a pull request against `main` with one change in it, and say what it fixes and how you checked it. CI runs every check on the
+newest Node release and on the newest long-term support release.
+
+## Security
+
+Report a vulnerability privately, as [SECURITY.md](./SECURITY.md) describes, never in a public issue.

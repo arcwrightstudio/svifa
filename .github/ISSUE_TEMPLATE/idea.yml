@@ -1,0 +1,11 @@
+name: Idea
+description: Something Svifa could do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you need
+      description: The problem on your site, rather than a solution, and what you tried.
+    validations:
+      required: true

@@ -1,0 +1,41 @@
+name: Bug
+description: Something Svifa does wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: A page that shows it
+      description: A link to a page that shows the problem. The examples in the README open on StackBlitz, ready to change.
+  - type: input
+    id: version
+    attributes:
+      label: Svifa version
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and system
+      placeholder: Chrome 141 on Windows 11
+    validations:
+      required: true
+  - type: input
+    id: display
+    attributes:
+      label: Display
+      description: Its refresh rate and scaling, since both change how scrolling looks.
+      placeholder: 144 Hz, 125% scaling
+  - type: input
+    id: framework
+    attributes:
+      label: Framework
+      placeholder: Next.js 16, or none

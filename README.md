@@ -570,17 +570,8 @@ rules for using it in one plain file, to give an AI coding tool as context.
 
 ## Working on Svifa
 
-```sh
-npm ci                   # the tools (Node 22.18, 24.11, 26 or later)
-npm run typecheck        # the library, the tests and the config files
-npm run build            # dist/: the ES module, the CommonJS file, the script builds and the types
-npm test                 # the suite, in Chromium, Firefox and WebKit (npx playwright install, once)
-npm run check:package    # the exports and types as every module resolution reads them, and the README's pinned hashes
-npm run check:installs   # installs the packed package with npm, pnpm, Yarn 1 and 4, Bun and Deno, and uses it in each
-```
-
-`npm publish` runs the type check, the build, the suite and the package check first.
-
+[CONTRIBUTING.md](./CONTRIBUTING.md) has the commands and the rules every change follows. Report a security issue as
+[SECURITY.md](./SECURITY.md) describes, and ask questions in [Discussions](https://github.com/arcwrightstudio/svifa/discussions).
 
 ## License
 
