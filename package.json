@@ -69,7 +69,8 @@
   "files": [
     "dist",
     "react",
-    "svifa.css"
+    "svifa.css",
+    "llms.txt"
   ],
   "engines": {
     "node": ">=14"
@@ -86,7 +87,7 @@
     "build": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsdown",
     "typecheck": "tsc && tsc -p tests",
     "test": "playwright test",
-    "check:package": "publint && attw --pack . --exclude-entrypoints svifa.css",
+    "check:package": "publint && attw --pack . --exclude-entrypoints svifa.css && node scripts/check-example.mjs",
     "prepublishOnly": "npm run typecheck && npm run build && npm test && npm run check:package",
     "check:installs": "node scripts/check-installs.mjs"
   },

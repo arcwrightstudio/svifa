@@ -1,0 +1,135 @@
+# Svifa: smooth scroll for the web (@arcwrightstudio/svifa)
+
+> A smooth scroll library for the browser: the mouse wheel and the trackpad scroll smoothly, on the whole page or inside any
+> scrolling element. Plain JavaScript with no dependencies; works with any framework or none. The keyboard, the scroll bar, touch
+> and find in page stay the browser's own. Svifa moves the real scroll position, so sticky elements, IntersectionObserver and
+> scroll events keep working. With the subpixel option it also removes the jitter at the end of a smooth scroll, by drawing the
+> fraction of a pixel the browser cannot scroll by on the GPU. The same timing at any refresh rate.
+
+This file is the complete reference for writing code that uses Svifa. The README has the same with more explanation.
+
+## Install
+
+npm install @arcwrightstudio/svifa (or pnpm add, yarn add, bun add, deno add npm:@arcwrightstudio/svifa)
+
+Script tag: https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.0.0/dist/svifa.global.min.js sets window.Svifa.
+
+## Rules that matter
+
+- Create Svifa only in the browser: in an effect, onMounted, onMount, afterNextRender, a client-only plugin, or a script tag.
+  Importing the package on the server is safe (Node 14 or later); `new Svifa()` on the server throws.
+- One Svifa per scroller. Creating a second for the same scroller throws until the first is destroyed. Create it once, near the
+  root, and call destroy() when whatever created it goes away.
+- To scroll from code, call svifa.scrollTo(...), not window.scrollTo: a scroll Svifa did not make ends any glide at once.
+- Optional CSS: import '@arcwrightstudio/svifa/svifa.css' (stop() then also holds the keyboard and the scroll bar).
+- Reduced motion is followed by default: the wheel stays the browser's and scrollTo moves at once.
+- A scroller with scroll-snap-type is left to the browser (the wheel scrolls natively; scrollTo moves at once).
+
+## Plain JavaScript
+
+```js
+import Svifa from '@arcwrightstudio/svifa'
+import '@arcwrightstudio/svifa/svifa.css'
+
+const svifa = new Svifa({ lerp: 0.1 })
+svifa.scrollTo('#pricing', { offset: -80 })
+const stop = svifa.on('scroll', ({ scroll, progress, velocity, direction }) => {})
+svifa.destroy()
+```
+
+## React and Next.js (@arcwrightstudio/svifa/react, needs react 18 or 19)
+
+```tsx
+import { SmoothScroll, useSvifa } from '@arcwrightstudio/svifa/react'
+import '@arcwrightstudio/svifa/svifa.css'
+
+// app/layout.tsx (a server layout can render it: it is a client component)
+<body><SmoothScroll lerp={0.08}>{children}</SmoothScroll></body>
+
+// any component inside (in Next.js a client component, 'use client')
+const svifa = useSvifa()                              // Svifa | null (null on the server and until made)
+useSvifa((g) => setProgress(g.progress))             // called on every scroll
+<button onClick={() => svifa?.scrollTo('top')}>Top</button>
+```
+
+SmoothScroll props are the options below; `scroller` may also be a ref. Changing lerp, duration, easing, wheel, wheelSpeed, nested,
+native, chain or anchors retunes the running Svifa; changing scroller, axis, subpixel (a selector), reducedMotion or autoRaf makes it
+again. Works under StrictMode.
+
+## Other frameworks
+
+- Vue: `let svifa; onMounted(() => (svifa = new Svifa())); onBeforeUnmount(() => svifa?.destroy())`
+- Nuxt 4: app/plugins/svifa.client.ts (Nuxt 3: plugins/svifa.client.ts):
+  `export default defineNuxtPlugin(() => ({ provide: { svifa: new Svifa() } }))`
+- Svelte / SvelteKit (a component, or src/routes/+layout.svelte): `onMount(() => { const svifa = new Svifa(); return () =>
+  svifa.destroy() })`
+- Angular (root component, src/app/app.ts), in the constructor, with `zone = inject(NgZone)` and
+  `destroyRef = inject(DestroyRef)`: `afterNextRender(() => { const svifa = zone.runOutsideAngular(() => new Svifa());
+  destroyRef.onDestroy(() => svifa.destroy()) })`. Works with zone.js and without it.
+- Astro: `<script>import Svifa from '@arcwrightstudio/svifa'; new Svifa()</script>` in a layout.
+
+## Options (new Svifa(options))
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| scroller | window | The page, or a scrolling element (overflow auto or scroll). |
+| axis | 'vertical' | 'horizontal' for a sideways scroller (right-to-left content included); it takes the wheel's up and down too. |
+| lerp | 0.1 | Smoothness, the same at any refresh rate: about this share of the remaining distance every 1/60 s. 0.16 snappy, 0.07 soft, 0.05 slow, 0.03 very slow. At most 1. |
+| duration | none | Glide for a set time in seconds instead, along easing. |
+| easing | ease-out | (t: 0..1) => 0..1, for a timed glide. |
+| wheel | true | false leaves the wheel to the browser; scrollTo still glides. |
+| wheelSpeed | 1 | Multiplies every wheel and trackpad movement. |
+| nested | true | A scrolling box inside keeps the wheel while it can move that way, or while its overscroll-behavior keeps it. |
+| native | none | (element) => boolean: elements whose wheel turns are left to the browser. data-svifa-native on an element does the same. |
+| chain | true | For an element scroller: at its start or end the wheel goes on to the page. |
+| subpixel | none | A selector, a list or a function: elements drawn between whole pixels while the content glides (see below). |
+| anchors | false | true, or scrollTo options: glide to same-page links (#id, #, #top). Adds a history entry, sends hashchange, moves keyboard focus for a link pressed from the keyboard. |
+| reducedMotion | true | Follow prefers-reduced-motion. |
+| autoRaf | true | false to call svifa.raf(time) from your own loop (GSAP: gsap.ticker.add((t) => svifa.raf(t * 1000))). |
+
+A number that is not finite is taken as its default.
+
+## Methods
+
+- scrollTo(target, options?) => Promise<boolean>. target: a number, an element, a CSS selector or '#id', 'top' | 'start' |
+  'bottom' | 'end'. Options: offset, immediate, lerp, duration, easing, lock (hold the wheel until it arrives), force (glide while
+  stopped). An element lands as for a link to it (scroll-margin and scroll-padding honoured; a nested scrolling box is brought into
+  view first). Resolves true on arrival, false if something else moved the scroller, the wheel or a later scrollTo took over, Svifa
+  is stopped, or the target is missing (with a warning). Never rejects.
+- configure(changes): change lerp, duration, easing, wheel, wheelSpeed, nested, native, chain, anchors while running
+  (duration: undefined goes back to lerp). Other options are fixed at creation.
+- stop() / start(): hold the scroller for a dialog; with svifa.css the keyboard and the scroll bar are held too, and the scroll
+  bar's room is kept so nothing shifts.
+- on('scroll', listener) returns an unsubscribe function; off('scroll', listener). The listener gets the Svifa instance.
+- raf(time): only with autoRaf: false.
+- destroy(): removes every listener, class and style; calling it twice is safe.
+
+## Properties
+
+scroll (current position: exact while gliding, the browser's at rest), target, limit (measured now), progress (0..1), velocity
+(px/s), direction (1, -1, 0), isGliding, isStopped, element (<html> for the page), axis, options (read only). Exports: Svifa
+(default and named), easeOut, version; types SvifaOptions, ScrollToOptions, TunableOptions, SvifaTarget, Easing, Axis, SvifaEvent,
+ResolvedOptions.
+
+## Events and classes
+
+The browser's scroll events fire as usual. One scrollend per glide that moved the scroller (detail.svifa === true), on document for
+the page. Classes on the scroller's element: svifa, svifa-gliding, svifa-stopped, svifa-subpixel.
+
+## Drawing between pixels (subpixel)
+
+```js
+new Svifa({ subpixel: 'main > section, footer' })
+```
+```css
+.svifa-subpixel main > section, .svifa-subpixel footer { will-change: translate; }
+```
+
+List the blocks that scroll with the content, and every sticky element inside them (with the same CSS). Never list a
+position: fixed element or an ancestor of one. Each listed element becomes a stacking context. In Chrome and Edge on Windows, text in
+a listed element uses greyscale antialiasing. Off while reduced motion is on, and where the browser lacks the translate property.
+
+## Yarn Plug'n'Play
+
+The React entry works through a bundler. Importing it directly in Node through Yarn's experimental ES module loader fails (React
+itself fails the same way there); use require in that case. The core imports either way.
