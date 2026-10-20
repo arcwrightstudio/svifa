@@ -1,7 +1,7 @@
-// The README loads Svifa from jsDelivr, pinned to a version and to the files' integrity hashes. This checks that it pins the
-// version in package.json and that each hash is the hash of the file this build makes, so it works the moment that version is
-// published. Run after the build. usage: node scripts/check-example.mjs [--write]
-// --write puts this version and this build's hashes into it.
+// The plain-page example and the README load Svifa from jsDelivr, pinned to a version and to the files' integrity hashes. This
+// checks that they pin the version in package.json and that each hash is the hash of the file this build makes, so they work the
+// moment that version is published. Run after the build. usage: node scripts/check-example.mjs [--write]
+// --write puts this version and this build's hashes into them.
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +14,7 @@ let found = 0
 
 // each tag that loads a file of the package from the CDN, with the integrity it carries
 const tag = /<(script|link)\b[^>]*?\b(?:src|href)="https:\/\/cdn\.jsdelivr\.net\/npm\/(@?[^@"]+)@([^/"]+)\/([^"]+)"[^>]*>/g
-for (const place of ['README.md']) {
+for (const place of ['examples/html/index.html', 'README.md']) {
   const path = `${root}${place}`
   const text = readFileSync(path, 'utf8').replace(tag, (whole, _kind, pkg, pinned, file) => {
     found++
@@ -35,13 +35,13 @@ for (const place of ['README.md']) {
   })
   if (write) writeFileSync(path, text)
 }
-if (found === 0) problems.push('the README loads nothing from the CDN')
+if (found === 0) problems.push('the example and the README load nothing from the CDN')
 
 if (write) {
-  console.log(`the README now pins ${name}@${version} and this build's hashes`)
+  console.log(`the example and the README now pin ${name}@${version} and this build's hashes`)
 } else if (problems.length) {
   console.error(problems.join('\n'))
   process.exit(1)
 } else {
-  console.log(`the README pins ${name}@${version}, and its ${found} hashes are this build's`)
+  console.log(`the example and the README pin ${name}@${version}, and their ${found} hashes are this build's`)
 }

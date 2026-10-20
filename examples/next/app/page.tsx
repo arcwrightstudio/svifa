@@ -1,0 +1,31 @@
+import { ReadingProgress } from './reading-progress'
+
+export default function Home() {
+  return (
+    <>
+      <header>
+        <nav>
+          <a href="#one">One</a>
+          <a href="#two">Two</a>
+          <a href="#three">Three</a>
+          <a href="#top">Top</a>
+        </nav>
+        <ReadingProgress />
+      </header>
+      <main>
+        <section id="one">
+          <h1>Svifa</h1>
+          <p>Turn the mouse wheel or swipe on the trackpad, and the page glides to where you sent it.</p>
+        </section>
+        <section id="two">
+          <h2>Out of the way</h2>
+          <p>The keyboard, the scroll bar, touch and find in page stay the browser&apos;s own, and take over at once.</p>
+        </section>
+        <section id="three">
+          <h2>Between pixels</h2>
+          <p>Scroll slowly and watch the text: it moves evenly to the end, with no one-pixel hops as it settles.</p>
+        </section>
+      </main>
+    </>
+  )
+}
