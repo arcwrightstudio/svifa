@@ -1,0 +1,38 @@
+name: Release
+
+# Publishing a GitHub release named after the version (v1.2.3) checks everything again and publishes that version to npm with
+# provenance: npm shows that it was built here, from this repository, by this workflow.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-26.04
+    steps:
+      # the name for the branch checkout starts its repository with (unset, git prints a hint about its default)
+      - run: git config --global init.defaultBranch main
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - name: Check the release is named after this version
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$version" ]; then
+            echo "::error::The release is $GITHUB_REF_NAME, but package.json is at $version"
+            exit 1
+          fi
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      # npm runs every check before it publishes (prepublishOnly): types, the build, the tests and the package checks
+      - run: npm publish --provenance
+        env:
+          # npm signs in by trusted publishing once that is set up for the package, and needs no token; until then, by this one
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

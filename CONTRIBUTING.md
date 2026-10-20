@@ -62,6 +62,13 @@ against another React version (React 18 is supported as well as 19).
 Open a pull request against `main` with one change in it, and say what it fixes and how you checked it. CI runs every check on the
 newest Node release and on the newest long-term support release.
 
+## Releasing
+
+Raise the version with `npm version 1.2.3 --no-git-tag-version` (it updates `package.json` and the lockfile), build, pin the CDN
+tags to it with `node scripts/check-example.mjs --write`, add the version to `CHANGELOG.md`, commit, and run `npm run check:installs`.
+Then publish a GitHub release named after the version (`v1.2.3`) on that commit: the Release workflow checks everything again and
+publishes to npm with provenance.
+
 ## Security
 
 Report a vulnerability privately, as [SECURITY.md](./SECURITY.md) describes, never in a public issue.
