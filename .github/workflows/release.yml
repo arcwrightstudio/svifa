@@ -42,6 +42,8 @@ jobs:
             exit 1
           fi
       - run: npm ci
+      # no release while any installed package, a development tool included, has a known vulnerability (SECURITY.md, Dependencies)
+      - run: npm audit --audit-level=low
       - run: npx playwright install --with-deps chromium firefox webkit
       # npm runs every check before it stages (prepublishOnly): types, the build, the tests and the package checks
       - run: npm stage publish --provenance

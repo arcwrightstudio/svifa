@@ -578,6 +578,9 @@ Types are included for every entry and module format, including TypeScript's old
 dependency: only the React entry needs it. The ES module and the CommonJS file are separate copies of the code, so use one of them
 throughout an app.
 
+Each version carries its software bill of materials, `dist/sbom.cdx.json` (CycloneDX), and its signed provenance; SECURITY.md says
+[how to verify a release](./SECURITY.md#verifying-a-release).
+
 Svifa follows [semantic versioning](https://semver.org).
 
 ## With AI coding tools

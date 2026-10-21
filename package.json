@@ -84,7 +84,8 @@
     }
   },
   "scripts": {
-    "build": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsdown",
+    "build": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsdown && npm run sbom",
+    "sbom": "node scripts/sbom.mjs",
     "typecheck": "tsc && tsc -p tests",
     "lint": "oxlint --deny-warnings src tests scripts examples && prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.ts\" \"examples/**/*.{ts,tsx,mjs,css}\"",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.ts\" \"examples/**/*.{ts,tsx,mjs,css}\"",
