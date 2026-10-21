@@ -49,6 +49,9 @@ drawn on the chosen elements. Anything else that moves the scroller (a key, the 
   (`autoRaf: false`), so every run sees the same frames at any chosen refresh rate. A test for something only some engines have is
   tagged (`@chromium-only`, `@not-webkit`) or listed in `playwright.config.ts`, so it runs only there and nothing is reported
   skipped.
+- `tests/properties.spec.ts`: what must hold for every input, checked on many generated cases by
+  [fast-check](https://fast-check.dev), new ones on every run: wheel turns, glides and frame timings of every size, and options of
+  kinds the types do not allow. A failure prints the seed and path that replay it.
 
 ### Code style
 

@@ -89,12 +89,14 @@ export class Scroller {
     this.write(place)
     // A browser on the device grid keeps the place as written (read back as a float32 in some, so its rounding is allowed for). One
     // that moves it by less than a pixel keeps whole CSS pixels; a pixel or more is the browser holding the scroller at an end that
-    // has moved, and the ends teach nothing.
+    // has moved. A place moved past is always the grid, since an end only ever holds the scroller short; held short within a pixel
+    // of either end, the grid and the end look alike, and one pixel further tells them apart (goesOn).
     let learned = false
     if (!this.coarse) {
       const actual = this.position
       const off = Math.abs(actual - place)
-      if (off > slop(place) && off < 1 && actual > 0 && actual < this.max - 1) {
+      const grid = off > slop(place) && off < 1
+      if (grid && (actual > place || (actual > 0 && actual < this.max - 1) || this.goesOn(actual, place))) {
         this.coarse = learned = true
         // this once, written again on the grid just learned, so the move still lands on the nearest place
         place = this.restingPlace(Math.max(position, 0))
@@ -103,6 +105,16 @@ export class Scroller {
     }
     this.short = this.position < place - slop(place)
     return learned
+  }
+
+  // Within a pixel of either end, a place cut down to the whole CSS pixel below it looks just like the scroller held at an end. It
+  // goes one pixel further only if there is room to; if it does not, it is put back where it was.
+  private goesOn(actual: number, place: number): boolean {
+    if (actual !== Math.floor(place) || actual + 1 > this.measure()) return false
+    this.write(actual + 1)
+    if (this.position >= actual + 1 - slop(actual + 1)) return true
+    this.write(place)
+    return false
   }
 
   private write(place: number) {

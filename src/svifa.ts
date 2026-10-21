@@ -44,6 +44,8 @@ const finiteOr = (value: number | undefined, fallback: number) => (Number.isFini
 const lerpOr = (value: number | undefined, fallback: number) =>
   Number.isFinite(value) && (value as number) > 0 ? Math.min(value as number, 1) : fallback
 const durationOr = (value: number | undefined) => (Number.isFinite(value) && (value as number) > 0 ? value : undefined)
+// An easing given as an option, or the fallback when it is not a function (a script build is given whatever a page passes).
+const easingOr = (value: Easing | undefined, fallback: Easing) => (typeof value === 'function' ? value : fallback)
 
 // The fragment of an address, '#' included, or null when it has none ('#' alone is a fragment, an empty one).
 const fragmentOf = (href: string) => {
@@ -114,7 +116,7 @@ export class Svifa {
       axis: options.axis ?? 'vertical',
       lerp: lerpOr(options.lerp, 0.1),
       duration: durationOr(options.duration),
-      easing: options.easing ?? easeOut,
+      easing: easingOr(options.easing, easeOut),
       wheel: options.wheel ?? true,
       wheelSpeed: finiteOr(options.wheelSpeed, 1),
       nested: options.nested ?? true,
@@ -255,7 +257,7 @@ export class Svifa {
     const how: How = {
       lerp: lerpOr(options.lerp, this.settings.lerp),
       duration: durationOr(own ? options.duration : this.settings.duration),
-      easing: options.easing ?? this.settings.easing,
+      easing: easingOr(options.easing, this.settings.easing),
       lock: options.lock,
     }
     return new Promise((done) => {
@@ -281,7 +283,7 @@ export class Svifa {
     if ('duration' in changes) {
       settings.duration = changes.duration === undefined ? undefined : (durationOr(changes.duration) ?? settings.duration)
     }
-    if ('easing' in changes) settings.easing = typeof changes.easing === 'function' ? changes.easing : easeOut
+    if ('easing' in changes) settings.easing = easingOr(changes.easing, easeOut)
     if ('wheel' in changes) settings.wheel = changes.wheel !== false
     if ('wheelSpeed' in changes) settings.wheelSpeed = finiteOr(changes.wheelSpeed, settings.wheelSpeed)
     if ('nested' in changes) settings.nested = changes.nested !== false
@@ -354,7 +356,8 @@ export class Svifa {
     if (this.value !== before) this.direction = this.value > before ? 1 : -1
 
     const aimed = motion.to
-    this.draw()
+    // a move that showed the browser's grid is judged again on it: drawn on the pixel of its end, the glide is there
+    if (this.draw() && !done && motion.kind === 'lerp' && this.arrived(motion.to)) done = true
     // the first move showed the browser's grid and the end moved onto it: one more frame gets there
     if (done && motion.to !== aimed) done = false
     // at rest the position is wherever the browser put the scroller (its own grid, or held short at an end), reported before the
@@ -597,7 +600,8 @@ export class Svifa {
     return this.area.restingPlace(this.value) === this.area.restingPlace(to)
   }
 
-  private draw() {
+  // Draws the glide where it is now. Returns true when this move showed that the browser keeps whole CSS pixels.
+  private draw(): boolean {
     this.quietEnd = true
     const learned = this.area.moveTo(this.value)
     const actual = this.area.position
@@ -613,6 +617,7 @@ export class Svifa {
     this.layer?.place(this.value, actual)
     // the browser turned out to keep whole CSS pixels: aim the glide under way at a place it can rest on
     if (learned && this.layer && this.motion) this.motion.to = this.area.restingPlace(this.goal)
+    return learned
   }
 
   private arrive() {

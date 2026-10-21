@@ -295,6 +295,123 @@ test.describe('the browser’s own grid', () => {
       expect(result.value).toBe(result.rest)
       expect(result.left).toBe('')
     })
+
+    // a browser that keeps whole CSS pixels moves the first half pixel written onto a whole one, down (cut) or up (rounded); near the
+    // end, cut down looks just like the page ending short of it
+    test('a first glide within a pixel of the page’s end reaches it, and moves as smoothly and as truly drawn away from it', async ({
+      page,
+    }) => {
+      await open(page)
+      const runs = await page.evaluate(() => {
+        const w = window as any
+        const limit = document.documentElement.scrollHeight - innerHeight
+        return [
+          [limit - 1, 1],
+          [limit, -1],
+          [limit - 1, -1],
+        ].map(([start, delta]) => {
+          window.scrollTo({ top: start, behavior: 'instant' })
+          const g = new w.Svifa({ autoRaf: false })
+          w.frame(g)
+          w.wheel(window, delta)
+          let step = 0
+          let drawn = 0
+          while (g.isGliding) {
+            const before = g.scroll
+            w.frame(g)
+            step = Math.max(step, Math.abs(g.scroll - before))
+            drawn = Math.max(drawn, Math.abs(window.scrollY - g.scroll))
+          }
+          // arriving on a whole pixel settles the last half of one at once, with the frame's own share of the curve
+          const run = { aimed: start + delta, rest: g.scroll, y: window.scrollY, smooth: step < 0.6, drawn: drawn <= 0.5 }
+          g.destroy()
+          return run
+        })
+      })
+      for (const run of runs) expect(run).toEqual({ aimed: run.aimed, rest: run.aimed, y: run.aimed, smooth: true, drawn: true })
+    })
+
+    test('a first glide from the top is drawn within half a pixel of where it is, from its first frame', async ({ page }) => {
+      await open(page)
+      const worst = await page.evaluate(() => {
+        const w = window as any
+        const g = new w.Svifa({ autoRaf: false })
+        w.frame(g)
+        w.wheel(window, 7)
+        let worst = 0
+        while (g.isGliding) {
+          w.frame(g)
+          worst = Math.max(worst, Math.abs(window.scrollY - g.scroll))
+        }
+        return worst
+      })
+      expect(worst).toBeLessThanOrEqual(0.5)
+    })
+
+    // a right-to-left scroller counts down from 0, so a whole-pixel browser may cut its first half pixel toward the start
+    test('a right-to-left scroller is drawn within half a pixel of a first glide from its start, and reaches its end', async ({
+      page,
+    }) => {
+      await open(
+        page,
+        '<div id="box" dir="rtl" style="width: 300px; overflow: auto"><div style="width: 3000px; height: 10px"></div></div>'
+      )
+      const runs = await page.evaluate(() => {
+        const w = window as any
+        const box = document.getElementById('box')!
+        const limit = box.scrollWidth - box.clientWidth
+        return [
+          [0, 7],
+          [limit - 1, 1],
+        ].map(([start, delta]) => {
+          box.scrollTo({ left: -start, behavior: 'instant' })
+          const g = new w.Svifa({ autoRaf: false, scroller: box, axis: 'horizontal' })
+          w.frame(g)
+          w.wheel(box, delta)
+          let drawn = 0
+          while (g.isGliding) {
+            w.frame(g)
+            drawn = Math.max(drawn, Math.abs(-box.scrollLeft - g.scroll))
+          }
+          const run = { aimed: start + delta, rest: g.scroll, at: -box.scrollLeft + 0, drawn: drawn <= 0.5 }
+          g.destroy()
+          return run
+        })
+      })
+      for (const run of runs) expect(run).toEqual({ aimed: run.aimed, rest: run.aimed, at: run.aimed, drawn: true })
+    })
+
+    test('a glide stops on the frame the browser draws it at its end, also on the move that shows its grid', async ({ page }) => {
+      await open(page)
+      const late = await page.evaluate(() => {
+        const w = window as any
+        const late: number[][] = []
+        // the first three write their first half pixel past the middle of it (300.53, 299.47, 301.55): on a whole-pixel grid that
+        // move is drawn at the end
+        for (const [lerp, ms, delta] of [
+          [0.9, 14, 1],
+          [0.9, 14, -1],
+          [0.5, 25, 2],
+          [0.1, 16, 1],
+          [0.1, 16, 5],
+        ]) {
+          window.scrollTo({ top: 300, behavior: 'instant' })
+          const g = new w.Svifa({ autoRaf: false, lerp })
+          let clock = 1000
+          g.raf(clock)
+          w.wheel(window, delta)
+          const goal = g.target
+          while (g.isGliding) {
+            clock += ms
+            g.raf(clock)
+            if (g.isGliding && window.scrollY === goal) late.push([lerp, ms, delta, g.scroll])
+          }
+          g.destroy()
+        }
+        return late
+      })
+      expect(late).toEqual([])
+    })
   })
 })
 

@@ -290,6 +290,22 @@ test.describe('small things that should be exactly right', () => {
     expect(result).toEqual({ y: 500, arrived: true })
   })
 
+  test('an easing that is not a function is left out, so a timed glide still runs and ends', async ({ page }) => {
+    await open(page)
+    const result = await page.evaluate(async () => {
+      const w = window as any
+      const g = new w.Svifa({ autoRaf: false, duration: 0.2, easing: 'linear' })
+      w.frame(g)
+      w.wheel(window, 100)
+      for (let i = 0; i < 60 && g.isGliding; i++) w.frame(g)
+      const afterWheel = window.scrollY
+      const arrived = g.scrollTo(500, { duration: 0.2, easing: 5 })
+      for (let i = 0; i < 60 && g.isGliding; i++) w.frame(g)
+      return { afterWheel, y: window.scrollY, arrived: await arrived, easing: typeof g.options.easing }
+    })
+    expect(result).toEqual({ afterWheel: 100, y: 500, arrived: true, easing: 'function' })
+  })
+
   test('a link to "#" from an address with no fragment sends hashchange; on an element scroller it is left to the page', async ({
     page,
   }) => {

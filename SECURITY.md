@@ -97,4 +97,5 @@ where Svifa's files enter a page; and the build and release workflow, where the 
   integrity hashes for CDN use; dependencies watched by Dependabot, which proposes a new release only once it is a week old.
 
 **Verification.** CodeQL with its extended security queries runs on every change, and a change with a high-severity finding cannot
-be merged; secret scanning blocks a pushed credential; the tests run in Chromium, Firefox and WebKit on every change.
+be merged; secret scanning blocks a pushed credential; the tests run in Chromium, Firefox and WebKit on every change, among them
+property tests that feed Svifa generated input, options of kinds its types do not allow included, with new cases on every run.
