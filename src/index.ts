@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 export { Svifa, Svifa as default, easeOut } from './svifa'
 export type { ResolvedOptions } from './svifa'
 export type {

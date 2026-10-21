@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // The test and expect every spec uses: Playwright's own, with one addition for `npm run coverage`. During that run, in Chromium
 // (the engine that reports it), each test records which parts of Svifa's scripts it ran (the script build, and the React tests'
 // own bundle with its source map inside), for scripts/coverage.mjs to read.

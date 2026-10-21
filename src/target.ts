@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 import type { Scroller } from './scroller'
 import type { Point, SvifaTarget } from './types'
 

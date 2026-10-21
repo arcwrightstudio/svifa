@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 import { Svifa, type SvifaOptions } from '@arcwrightstudio/svifa'
 import {
   createContext,

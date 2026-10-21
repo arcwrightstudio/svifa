@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // Before a release: packs Svifa as it would be published, installs it with each package manager (npm, pnpm, Yarn 1, Yarn 4 in
 // Plug'n'Play mode, Bun, Deno) into a fresh project in a temporary folder, and proves it works there: an ES module import, a CommonJS
 // require, a type check and a bundle with the stylesheet. Any warning printed while the package runs, is bundled or is type checked

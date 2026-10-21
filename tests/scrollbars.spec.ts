@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // Real scroll bars, as on Windows, which Chromium shows headless once its default of hiding them is dropped.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

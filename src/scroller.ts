@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 import type { Axis } from './types'
 
 // Whether this browser takes behavior: 'instant' (it moves the scroller at once whatever the page's scroll-behavior says). Asked once.

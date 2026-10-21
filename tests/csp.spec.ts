@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // Svifa under a strict Content Security Policy: script and style only from the page's own origin, nothing inline, nothing else
 // fetched (but the favicon Firefox asks for by itself), and, where the browser has Trusted Types, no string reaching a script
 // sink. Svifa draws through the CSSOM and the DOM, which no policy restricts, so a page that locks itself down loses nothing.

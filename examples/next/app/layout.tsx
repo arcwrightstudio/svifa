@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { SmoothScroll } from '@arcwrightstudio/svifa/react'

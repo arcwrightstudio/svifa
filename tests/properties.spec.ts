@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // Properties of the motion, each checked on many generated cases (fast-check): wheel turns, lerps, durations and curves of every
 // size, frames at any rate and unevenly spaced, and options of kinds the types do not allow (a script build takes whatever it is
 // given). Every case runs in the page on the test's own clock. A failing case is shrunk to the smallest one that still fails, and the

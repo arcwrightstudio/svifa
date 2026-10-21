@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 import Svifa from '@arcwrightstudio/svifa'
 import '@arcwrightstudio/svifa/svifa.css'
 import './style.css'

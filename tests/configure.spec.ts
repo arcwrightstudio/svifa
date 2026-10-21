@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // configure(): how Svifa feels, changed while the page is open.
 import { expect, test } from './fixtures'
 import { open } from './setup'

@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT */
+/* Copyright (c) 2026 Arcwright Studio */
+
 /* Svifa's stylesheet. Optional: without it everything works, except that a stopped Svifa leaves the keyboard and the scroll bar
    free to move the scroller, and an iframe under the pointer can catch the wheel in the middle of a glide. */
 

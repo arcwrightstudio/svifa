@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // A scroller that moves both ways (axis: 'both'): the page, or an element, wider and taller than its visible area.
 import { expect, test } from './fixtures'
 import { open } from './setup'

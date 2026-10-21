@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // The <script> tag build: window.Svifa is the class itself, with easeOut and version on it.
 import { Svifa, easeOut, version } from './index'
 

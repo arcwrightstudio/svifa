@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // The React entry, in a real React 19 app under StrictMode (which makes, takes off and makes again every effect in development).
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
