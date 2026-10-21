@@ -4,6 +4,12 @@ Svifa follows [semantic versioning](https://semver.org).
 
 ## Unreleased
 
+### Added
+
+- `axis: 'both'`: a scroller that moves up and down and sideways glides both ways at once, each axis by its own part of a wheel or
+  trackpad movement, and Shift with a mouse wheel moves it sideways. `svifa.x` and `svifa.y` report each axis; `scrollTo` takes
+  `{ x, y }` and `offset` takes `{ x, y }`.
+
 ### Fixed
 
 - In a browser that keeps whole CSS pixels on a screen with more than one device pixel to a CSS pixel, a page's first glide near

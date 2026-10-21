@@ -16,25 +16,36 @@ const SETTLE = 0.02
 // within a few thousandths of a pixel of it; one still travelling is at least a step of layout away (1/64 px, 1/60 in Firefox).
 const HELD = 0.01
 
+// A length on each axis the layer draws, in the order of its scrollers.
+type Shift = number[]
+
+const still = (shift: Shift) => shift.every((part) => part === 0)
+const same = (a: Shift, b: Shift) => a.length === b.length && a.every((part, i) => part === b[i])
+
 /**
  * Draws the scrolled content at its exact position while it glides. The browser keeps the scroller on whole pixels (whole device
  * pixels in most browsers, whole CSS pixels in some), so after each move the part of a pixel it left over is drawn on the chosen
  * elements as a `translate`, which the GPU places between pixels. A glide ends on the browser's own grid, so at rest nothing is moved.
+ * It draws along each axis Svifa moves (one, or both of the same element).
  */
 export class Subpixel {
   private parts: Part[] | null = null
-  private written = new Map<Styled, number>() // the translate on each element now
+  private written = new Map<Styled, Shift>() // the translate on each element now
   private own = new Map<Styled, string>() // an element's own inline translate, put back when Svifa is done with it
-  private shown = new Map<Styled, number>() // how far each element is drawn from where the browser alone would put it
-  private leftover = 0
+  private shown = new Map<Styled, Shift>() // how far each element is drawn from where the browser alone would put it
+  private leftover: Shift
   private warned = false
   private anchoring: string | null = null // the scroller's own inline overflow-anchor while Svifa holds it off
   private watch: MutationObserver | null = null // notices elements added while the content glides
+  private readonly scroller: Scroller // the first axis: the element every axis shares
 
   constructor(
     private readonly source: Source,
-    private readonly scroller: Scroller
-  ) {}
+    private readonly scrollers: Scroller[]
+  ) {
+    this.scroller = scrollers[0]
+    this.leftover = scrollers.map(() => 0)
+  }
 
   /**
    * A glide is starting (`fresh`: from rest, so the elements are looked up afresh), and the browser's scroll anchoring is held off
@@ -63,17 +74,24 @@ export class Subpixel {
     }
   }
 
-  /** After the browser has put the scroller at `actual` for a wanted `position`, draws the rest of the way. */
-  place(position: number, actual: number): void {
-    const over = actual - position
-    const size = Math.abs(over)
-    // a grid never leaves a whole pixel over: that much means the browser stopped short at an edge, and nothing more is drawn
-    this.draw(size < 1e-6 || size >= 1 ? 0 : over)
+  /**
+   * After the browser has put the scroller at `actuals` for wanted `positions` (one of each per axis, in the order of the scrollers),
+   * draws the rest of the way.
+   */
+  place(positions: number[], actuals: number[]): void {
+    this.draw(
+      positions.map((position, i) => {
+        const over = actuals[i] - position
+        const size = Math.abs(over)
+        // a grid never leaves a whole pixel over: that much means the browser stopped short at an edge, and nothing more is drawn
+        return size < 1e-6 || size >= 1 ? 0 : over
+      })
+    )
   }
 
   /** The glide is over: every element goes back to where the browser puts it, and scroll anchoring is handed back. */
   clear(): void {
-    this.draw(0)
+    this.draw(this.scrollers.map(() => 0))
     this.parts = null
     this.watch?.disconnect()
     this.watch = null
@@ -88,40 +106,55 @@ export class Subpixel {
     return SETTLE / devicePixelRatio
   }
 
-  /** How far an element (through the nearest element of the set around it) is drawn from where the browser alone puts it. */
-  offsetOf(element: Element): number {
+  /**
+   * How far an element (through the nearest element of the set around it) is drawn from where the browser alone puts it, along the
+   * horizontal or the vertical axis.
+   */
+  offsetOf(element: Element, horizontal: boolean): number {
+    const axis = this.scrollers.findIndex((scroller) => scroller.horizontal === horizontal)
+    if (axis < 0) return 0
     for (let node: Element | null = element; node; node = node.parentElement) {
       const shown = this.shown.get(node as Styled)
-      if (shown !== undefined) return shown
+      if (shown !== undefined) return shown[axis]
     }
     return 0
   }
 
-  private draw(leftover: number) {
-    if (!Number.isFinite(leftover)) leftover = 0
-    if (leftover === this.leftover) return
+  private draw(leftover: Shift) {
+    leftover = leftover.map((part) => (Number.isFinite(part) ? part : 0))
+    if (same(leftover, this.leftover)) return
     this.leftover = leftover
 
-    const shown = new Map<Styled, number>()
-    const written = new Map<Styled, number>()
-    if (leftover !== 0) {
+    const shown = new Map<Styled, Shift>()
+    const written = new Map<Styled, Shift>()
+    if (!still(leftover)) {
       const parts = this.lookUp()
       // every measurement before any change, so no change makes the browser work the page out again for the next measurement
-      const shifts = new Map<Element, number>()
+      const shifts = new Map<Element, Shift>()
       for (const { sticky, carrier } of parts) {
-        if (sticky && !shifts.has(sticky)) shifts.set(sticky, this.stickyShift(sticky, carrier, leftover))
+        if (sticky && !shifts.has(sticky)) {
+          shifts.set(
+            sticky,
+            this.scrollers.map((scroller, i) => this.stickyShift(sticky, carrier, leftover[i], scroller, i))
+          )
+        }
       }
       for (const { element, outer, sticky } of parts) {
         const offset = sticky ? (shifts.get(sticky) ?? leftover) : leftover
+        const around = outer ? shown.get(outer) : undefined
         shown.set(element, offset)
-        written.set(element, offset - (outer ? (shown.get(outer) ?? 0) : 0))
+        written.set(
+          element,
+          offset.map((part, i) => part - (around ? around[i] : 0))
+        )
       }
     }
 
     for (const [element, offset] of written) {
-      if ((this.written.get(element) ?? 0) === offset) continue
+      const before = this.written.get(element)
+      if (before ? same(before, offset) : still(offset)) continue
       if (!this.own.has(element)) this.own.set(element, element.style.translate)
-      element.style.translate = offset === 0 ? (this.own.get(element) ?? '') : this.translate(offset)
+      element.style.translate = still(offset) ? (this.own.get(element) ?? '') : this.translate(offset)
     }
     for (const element of this.written.keys()) {
       if (written.has(element) || !this.own.has(element)) continue
@@ -132,8 +165,15 @@ export class Subpixel {
     this.shown = shown
   }
 
-  private translate(offset: number) {
-    return this.scroller.horizontal ? `${offset}px 0` : `0 ${offset}px`
+  // The translate for a shift along the layer's axes: an axis it does not draw stays at 0.
+  private translate(offset: Shift) {
+    let x = '0'
+    let y = '0'
+    this.scrollers.forEach((scroller, i) => {
+      if (scroller.horizontal) x = `${offset[i]}px`
+      else y = `${offset[i]}px`
+    })
+    return `${x} ${y}`
   }
 
   /**
@@ -161,19 +201,19 @@ export class Subpixel {
 
   // How far a sticky element (and all it holds) is drawn from where the browser alone puts it: the leftover while it travels with the
   // content, nothing while it is held at its sticky offset, and as it reaches that offset, only the way to it.
-  private stickyShift(sticky: Element, carrier: Styled | null, leftover: number) {
-    const horizontal = this.scroller.horizontal
+  private stickyShift(sticky: Element, carrier: Styled | null, leftover: number, scroller: Scroller, axis: number) {
+    const horizontal = scroller.horizontal
     const style = getComputedStyle(sticky)
     const near = Number.parseFloat(horizontal ? style.left : style.top)
     const far = Number.parseFloat(horizontal ? style.right : style.bottom)
     if (Number.isNaN(near) && Number.isNaN(far)) return leftover
 
     const box = sticky.getBoundingClientRect()
-    const carried = carrier ? (this.shown.get(carrier) ?? 0) : 0
-    const edge = this.scroller.edge
+    const carried = carrier ? (this.shown.get(carrier)?.[axis] ?? 0) : 0
+    const edge = scroller.edge
     // where the browser alone draws it (without what the set drew last frame), from the start and from the end of the visible area
     const fromStart = (horizontal ? box.left : box.top) - carried - edge
-    const fromEnd = edge + this.scroller.viewport - ((horizontal ? box.right : box.bottom) - carried)
+    const fromEnd = edge + scroller.viewport - ((horizontal ? box.right : box.bottom) - carried)
 
     if (!Number.isNaN(near)) {
       if (Math.abs(fromStart - near) < HELD) return 0

@@ -1,14 +1,21 @@
-/** The direction a scroller moves in. */
-export type Axis = 'vertical' | 'horizontal'
+/** The direction a scroller moves in: up and down, sideways, or both at once. */
+export type Axis = 'vertical' | 'horizontal' | 'both'
 
 /** A curve from 0 to 1 over a timed glide: given the share of the time gone (0 to 1), the share of the distance covered. */
 export type Easing = (t: number) => number
 
 /**
  * Where to go: a position in pixels, an element, a CSS selector or `#id`, or `'top'`/`'start'` (the beginning) or
- * `'bottom'`/`'end'` (the furthest the scroller can go).
+ * `'bottom'`/`'end'` (the furthest the scroller can go). On a scroller that moves both ways, a number is the vertical position and
+ * `{ x, y }` sets each axis (an axis left out stays where it is); an element, a selector or a keyword sets both.
  */
-export type SvifaTarget = number | Element | string
+export type SvifaTarget = number | Element | string | Point
+
+/** A position on each axis, in pixels from the start. Either may be left out. */
+export interface Point {
+  x?: number
+  y?: number
+}
 
 /** Svifa's options, every one of them optional. */
 export interface SvifaOptions {
@@ -20,7 +27,9 @@ export interface SvifaOptions {
   scroller?: Window | Element
 
   /**
-   * The direction it scrolls in. A horizontal scroller also takes the wheel's up and down.
+   * The direction it scrolls in. A horizontal scroller also takes the wheel's up and down. `'both'` glides each way at once, for a
+   * scroller that moves up and down and sideways (a map, a board, a wide table): the wheel's up and down move it vertically and its
+   * sideways movement horizontally.
    * @default 'vertical'
    */
   axis?: Axis
@@ -119,8 +128,12 @@ export type TunableOptions = Pick<
 
 /** Options for one glide made with `scrollTo`. */
 export interface ScrollToOptions {
-  /** Added to the target position, for example `-80` to stop short of a sticky header. @default 0 */
-  offset?: number
+  /**
+   * Added to the target position, for example `-80` to stop short of a sticky header. On a scroller that moves both ways, a number
+   * is added to the vertical position, and `{ x, y }` to each.
+   * @default 0
+   */
+  offset?: number | Point
   /** Move at once, without a glide. @default false */
   immediate?: boolean
   /** This glide's own `lerp`. */
@@ -133,6 +146,22 @@ export interface ScrollToOptions {
   lock?: boolean
   /** Glide even while Svifa is stopped. @default false */
   force?: boolean
+}
+
+/** One axis of a scroller as Svifa moves it: `svifa.x` (sideways) and `svifa.y` (up and down). */
+export interface AxisState {
+  /** Where the content is along this axis, in pixels from the start: the glide's exact position while it moves. */
+  readonly scroll: number
+  /** Where it is heading along this axis: the end of the glide under way, or at rest the same as `scroll`. */
+  readonly target: number
+  /** The furthest it can scroll along this axis, in pixels, measured as it is now. */
+  readonly limit: number
+  /** `scroll` as a share of `limit`, from 0 to 1 (1 when it cannot scroll this way at all). */
+  readonly progress: number
+  /** How fast it is moving along this axis, in pixels a second, positive toward the end. */
+  readonly velocity: number
+  /** `1` toward the end, `-1` toward the start, `0` before it has moved this way. */
+  readonly direction: -1 | 0 | 1
 }
 
 /** The events Svifa hands out. `scroll` fires whenever the scroller's drawn position changes, whatever moved it. */
