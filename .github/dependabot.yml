@@ -1,0 +1,36 @@
+version: 2
+
+# A new release waits a week before it is proposed, so one that turns out to be compromised is usually withdrawn first.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      tools:
+        dependency-type: development
+    labels: [dependencies]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ['*']
+    labels: [dependencies]
+
+  - package-ecosystem: npm
+    directories: [/examples/vite, /examples/next]
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      examples:
+        patterns: ['*']
+    labels: [dependencies]
