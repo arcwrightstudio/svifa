@@ -88,7 +88,7 @@
     "typecheck": "tsc && tsc -p tests",
     "test": "playwright test",
     "check:package": "publint && attw --pack . --exclude-entrypoints svifa.css && node scripts/check-example.mjs",
-    "prepublishOnly": "npm run typecheck && npm run build && npm test && npm run check:package",
+    "prepublishOnly": "npm run typecheck && npm run build && npm test && npm run check:package --dry-run=false",
     "check:installs": "node scripts/check-installs.mjs"
   },
   "publishConfig": {
