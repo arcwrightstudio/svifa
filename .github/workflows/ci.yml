@@ -45,6 +45,33 @@ jobs:
         run: npm run coverage
       - run: npm run check:package
 
+  # every commit of a pull request certifies the Developer Certificate of Origin (CONTRIBUTING.md) with a sign-off naming its author;
+  # Dependabot's updates are made by a tool, not a person
+  sign-off:
+    name: sign-off
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - run: git config --global init.defaultBranch main
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          status=0
+          for commit in $(git rev-list --no-merges "$BASE..$HEAD"); do
+            author="$(git show -s --format='%an <%ae>' "$commit")"
+            if ! git show -s --format='%(trailers:key=Signed-off-by,valueonly)' "$commit" | grep -qxF "$author"; then
+              echo "::error::Commit $(git show -s --format=%h "$commit") has no Signed-off-by line naming its author, $author"
+              status=1
+            fi
+          done
+          exit $status
+
   # a pull request may not bring in a dependency with a known vulnerability or a licence that does not allow open use
   dependencies:
     name: dependency review

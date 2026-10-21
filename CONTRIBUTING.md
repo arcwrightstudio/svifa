@@ -75,6 +75,13 @@ rule is rare, and is written where it applies, with the reason beside it.
 - The JSDoc in `src/`, `README.md` and `llms.txt` describe the same API and change with the code. A statement in any of them is
   something a test or a measurement shows.
 
+### Signing off
+
+Every commit carries a `Signed-off-by:` line with its author's name and email, which `git commit -s` adds. It certifies the
+[Developer Certificate of Origin](https://developercertificate.org): that you wrote the change, or otherwise have the right to give
+it under the project's MIT license. CI checks every commit of a pull request for it. To sign off commits made without it, run
+`git commit --amend -s` for the last one, or `git rebase --signoff main` for all of them.
+
 Open a pull request against `main` with one change in it, and say what it fixes and how you checked it. CI runs every check on the
 newest Node release and on the newest long-term support release.
 
