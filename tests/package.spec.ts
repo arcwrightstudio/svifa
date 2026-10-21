@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // The package as a project receives it: importable on a server without a page, usable from CommonJS, and typed for both.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'

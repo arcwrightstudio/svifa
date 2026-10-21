@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 import { Scroller } from './scroller'
 import { Subpixel } from './subpixel'
 import { positionOf, resolve, reveal } from './target'

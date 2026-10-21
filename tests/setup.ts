@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // What every test page shares: the built script loaded as window.Svifa, a page with plenty to scroll on an http origin of its own,
 // and helpers that step Svifa frame by frame on a clock of the test's own (autoRaf: false), so every run sees exactly the same frames.
 import { readFileSync } from 'node:fs'

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 import { defineConfig, devices } from '@playwright/test'
 
 // A test for something only some engines have runs only there, so no engine reports it skipped. Chromium alone shows its real

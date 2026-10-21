@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // Edges of the page that Svifa meets in real sites: other scrollers, keys, scripts, snapping, odd layouts, and its own lifecycle.
 import { expect, test } from './fixtures'
 import { open, settle } from './setup'

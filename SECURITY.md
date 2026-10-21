@@ -102,3 +102,25 @@ where Svifa's files enter a page; and the build and release workflow, where the 
 **Verification.** CodeQL with its extended security queries runs on every change, and a change with a high-severity finding cannot
 be merged; secret scanning blocks a pushed credential; the tests run in Chromium, Firefox and WebKit on every change, among them
 property tests that feed Svifa generated input, options of kinds its types do not allow included, with new cases on every run.
+
+## Security review
+
+The latest review was on 21 October 2026, of version 1.0.0 and the changes since it (scrolling both ways). It checked the code and
+the release path against the requirements and the trust boundaries above:
+
+- Every write to the page: the `translate` of the `subpixel` elements, the scroller's `overflow-anchor`, `scrollbar-gutter` and
+  `scroll-behavior`, its classes, and a `tabindex` while the place a link leads to has the focus. Each value written is a number
+  Svifa works out, a fixed word, or the value that was there before.
+- Every input from outside the page's code: wheel, key, touch and pointer events, read only for how far, which way and which key;
+  and a same-page link, whose address is parsed with `URL`, compared with the page's own origin, path and query, decoded with a
+  malformed escape taken as written, and looked up only with `getElementById`.
+- Every selector a page passes (`scrollTo`, `subpixel`): looked up only with `querySelector`, `querySelectorAll` or
+  `getElementById`, and one the browser cannot read finds nothing rather than throwing.
+- The options: each is read by its known name and checked; nothing from outside is merged into another object, and no string
+  becomes code.
+- The workflows: read-only tokens by default, an OpenID Connect token only for the job that stages a release, no credentials kept
+  in a checkout, and every action pinned to a commit.
+- The package: no runtime dependencies and no install scripts, and its files are exactly what the build makes from the release's
+  tag, which CI checks by building the newest release again and comparing it with npm's copy byte for byte.
+
+Nothing needed a fix. The review is repeated for every minor version, and at least once a year.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // What the page around Svifa relies on keeps working, and what the browser does on its own takes over from a glide.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

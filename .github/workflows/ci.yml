@@ -37,6 +37,16 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run lint
+      # every source file opens with the licence and copyright lines LICENSE gives (SPDX); CONTRIBUTING.md says how
+      - if: matrix.node == 'latest'
+        run: |
+          missing="$(git ls-files '*.ts' '*.tsx' '*.mjs' '*.js' '*.css' '*.html' | while read -r file; do
+            head -n 4 "$file" | grep -q 'SPDX-License-Identifier: MIT' && head -n 4 "$file" | grep -q 'Copyright (c) 2026 Arcwright Studio' || echo "$file"
+          done)"
+          if [ -n "$missing" ]; then
+            echo "::error::These files do not open with the licence and copyright lines: $missing"
+            exit 1
+          fi
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
@@ -71,6 +81,43 @@ jobs:
             fi
           done
           exit $status
+
+  # the newest version npm serves, built again here from its release tag, is byte for byte the package on npm
+  reproducible:
+    name: reproducible build
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - run: git config --global init.defaultBranch main
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/*
+          # built from nothing a run before could have left
+          package-manager-cache: false
+      - run: |
+          # the newest release tag whose version npm serves (one staged for approval is not served yet)
+          for tag in $(git tag --list 'v*' --sort=-v:refname); do
+            if npm view "@arcwrightstudio/svifa@${tag#v}" version > /dev/null 2>&1; then break; fi
+            tag=''
+          done
+          if [ -z "$tag" ]; then echo "::error::No release tag names a version npm serves"; exit 1; fi
+          version="${tag#v}"
+          git worktree add --detach "$RUNNER_TEMP/release" "$tag"
+          cd "$RUNNER_TEMP/release"
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          npm pack --pack-destination "$RUNNER_TEMP" --silent > /dev/null
+          cd "$RUNNER_TEMP"
+          mkdir built published
+          npm pack "@arcwrightstudio/svifa@$version" --pack-destination published --silent > /dev/null
+          tar -xzf "arcwrightstudio-svifa-$version.tgz" -C built
+          tar -xzf "published/arcwrightstudio-svifa-$version.tgz" -C published
+          diff -r built/package published/package
+          echo "$tag, built again from its tag, is byte for byte the package npm serves"
 
   # a pull request may not bring in a dependency with a known vulnerability or a licence that does not allow open use
   dependencies:

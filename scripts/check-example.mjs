@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // The plain-page example and the README load Svifa from jsDelivr, pinned to a version and to the files' integrity hashes. This
 // checks that they pin the version in package.json, and that each hash is the hash of the file that version serves: the published
 // file once the version is on npm (between releases, while the source changes), this build's file while it is not (a release

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 /** The direction a scroller moves in: up and down, sideways, or both at once. */
 export type Axis = 'vertical' | 'horizontal' | 'both'
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // A turn of the wheel or a move on a trackpad, in pixels, and whether an element inside the scroller should take it instead.
 
 // One notch of a mouse wheel scrolls three lines. Chrome and Safari report a notch as 100 pixels, Firefox as 3 lines; a line of 100/3

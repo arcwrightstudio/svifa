@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
 // How much of Svifa's source the tests run. `npm run coverage` runs the suite in Chromium, which records what each test ran of the
 // script build (tests/fixtures.ts); this maps that back to the files in src/ through the build's source map, prints statements,
 // branches, functions and lines for each file and in all, and fails below the floors set here. Run after the build.

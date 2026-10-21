@@ -61,6 +61,15 @@ defects with its correctness and suspicious rules, as `.oxlintrc.json` sets them
 drive, and call a constructor for what it does). `npm run lint` checks both, and CI runs it on every change. An exception to a
 rule is rare, and is written where it applies, with the reason beside it.
 
+Every source file opens with two lines: the license as an [SPDX](https://spdx.dev/learn/handling-license-info/) identifier, and
+the copyright that `LICENSE` gives. CSS and HTML files write them in their own comments. A new file starts with them too, and CI
+checks every file for them.
+
+```ts
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+```
+
 ### Rules every change follows
 
 - A fix comes with a test that fails without it. Write the test first, see it fail against the old code, then fix, and put the fault
@@ -87,6 +96,27 @@ it under the project's MIT license. CI checks every commit of a pull request for
 
 Open a pull request against `main` with one change in it, and say what it fixes and how you checked it. CI runs every check on the
 newest Node release and on the newest long-term support release.
+
+### A first contribution
+
+Issues labelled [good first issue](https://github.com/arcwrightstudio/svifa/labels/good%20first%20issue) are small and
+self-contained, and say what done looks like. Say in the issue that you are taking one, so two people do not work on it at once.
+
+### How a change is reviewed
+
+Every pull request is reviewed and approved by a code owner (`.github/CODEOWNERS`) and passes every check before it merges, as one
+squashed commit. A review asks:
+
+- Does the change belong in Svifa, by the roadmap in the README and the rules above?
+- Is there a test that fails without it, in every engine it runs in, and do the property tests still hold?
+- Does it leave the browser's own keyboard, scroll bar, touch, find in page and reduced motion as they were?
+- Is motion judged in time, giving the same result at any refresh rate?
+- Does it add a dependency, or anything a strict Content Security Policy would refuse? Neither is accepted.
+- Do the types, the JSDoc, the README and `llms.txt` describe it, and does `CHANGELOG.md` say what changed for users?
+- Does every commit carry its sign-off?
+
+The reviewer asks in the pull request for anything missing and approves once every point holds. A commit pushed after an approval
+needs a new one.
 
 ## Security
 
