@@ -1,9 +1,7 @@
 name: Release
 
 # Publishing a GitHub release named after the version (v1.2.3) checks everything again and stages that version on npm with
-# provenance: npm shows that it was built here, from this repository, by this workflow. It goes live once a maintainer approves it
-# on npmjs.com (the package's Staged Packages tab, with two-factor authentication). npm trusts this workflow by OpenID Connect, so
-# no token is kept anywhere.
+# provenance, for a maintainer to approve. npm trusts this workflow by OpenID Connect, so it needs no token.
 on:
   release:
     types: [published]
