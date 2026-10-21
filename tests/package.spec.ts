@@ -72,10 +72,20 @@ test.describe('the package', () => {
     writeFileSync(
       join(dir, 'tsconfig.json'),
       JSON.stringify({
-        compilerOptions: { strict: true, noEmit: true, module: 'ESNext', moduleResolution: 'Bundler', target: 'ES2020', lib: ['ES2020', 'DOM'], skipLibCheck: false },
+        compilerOptions: {
+          strict: true,
+          noEmit: true,
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          target: 'ES2020',
+          lib: ['ES2020', 'DOM'],
+          skipLibCheck: false,
+        },
         files: ['use.ts'],
       })
     )
-    execFileSync(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(dir, 'tsconfig.json')], { encoding: 'utf8' })
+    execFileSync(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(dir, 'tsconfig.json')], {
+      encoding: 'utf8',
+    })
   })
 })

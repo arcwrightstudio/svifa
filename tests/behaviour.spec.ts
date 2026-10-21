@@ -56,7 +56,11 @@ test.describe('living with everything else on the page', () => {
         prevented: w.wheel(window, 100),
       }
       g.start()
-      const started = { isStopped: g.isStopped, cls: document.documentElement.classList.contains('svifa-stopped'), prevented: w.wheel(window, 100) }
+      const started = {
+        isStopped: g.isStopped,
+        cls: document.documentElement.classList.contains('svifa-stopped'),
+        prevented: w.wheel(window, 100),
+      }
       return { stopped, started }
     })
     expect(state.stopped).toEqual({ gliding: false, isStopped: true, cls: true, prevented: true })
@@ -163,7 +167,9 @@ test.describe('boxes that scroll on their own', () => {
     expect(result.prevented).toBe(!result.contains)
   })
 
-  test('data-svifa-native and the native option leave elements to the browser; nested: false glides over boxes', async ({ page }) => {
+  test('data-svifa-native and the native option leave elements to the browser; nested: false glides over boxes', async ({
+    page,
+  }) => {
     await open(page, BOX)
     const result = await page.evaluate(() => {
       const w = window as any
@@ -311,7 +317,9 @@ test.describe('a long life on a real page', () => {
   })
 })
 
-test('a glide started in the same moment as a scroll of the browser’s own (a focus, a link’s jump) is not taken over by it', async ({ page }) => {
+test('a glide started in the same moment as a scroll of the browser’s own (a focus, a link’s jump) is not taken over by it', async ({
+  page,
+}) => {
   await open(page)
   await page.evaluate(() => {
     const w = window as any
@@ -348,7 +356,9 @@ test.describe('same-page links (anchors)', () => {
     w.changes = [] as string[]
     window.addEventListener('hashchange', (event) => w.changes.push(new URL(event.newURL).hash))
     w.click = (id: string, init: MouseEventInit = {}) => {
-      document.getElementById(id)!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, detail: 1, ...init }))
+      document
+        .getElementById(id)!
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, detail: 1, ...init }))
       return taken
     }
   }
@@ -476,7 +486,9 @@ test('a scroll listener that runs before Svifa own reads the new place of a scro
   expect(seen.every((gap) => gap === 0)).toBe(true)
 })
 
-test('a move asked for right after a scroll Svifa has not heard of yet starts from where the browser has the page', async ({ page }) => {
+test('a move asked for right after a scroll Svifa has not heard of yet starts from where the browser has the page', async ({
+  page,
+}) => {
   await open(page)
   const result = await page.evaluate(() => {
     const w = window as any

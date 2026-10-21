@@ -11,7 +11,12 @@ test.describe('the wheel', () => {
       w.g.on('scroll', () => w.reported++)
       w.frame(w.g)
       const prevented = w.wheel(window, 100)
-      return { prevented, gliding: w.g.isGliding, target: w.g.target, gliding_class: document.documentElement.classList.contains('svifa-gliding') }
+      return {
+        prevented,
+        gliding: w.g.isGliding,
+        target: w.g.target,
+        gliding_class: document.documentElement.classList.contains('svifa-gliding'),
+      }
     })
     expect(result).toEqual({ prevented: true, gliding: true, target: 100, gliding_class: true })
 

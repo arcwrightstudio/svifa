@@ -36,7 +36,10 @@ test('a lower lerp glides longer and softer, a duration sets the time, and both 
 })
 
 test('wheelSpeed, wheel and anchors change while the page is open; after destroy, configure does nothing', async ({ page }) => {
-  await open(page, '<a id="go" href="#far">far</a><div style="height: 3000px"></div><section id="far">Far</section><div class="tall"></div>')
+  await open(
+    page,
+    '<a id="go" href="#far">far</a><div style="height: 3000px"></div><section id="far">Far</section><div class="tall"></div>'
+  )
   const result = await page.evaluate(() => {
     const w = window as any
     const g = new w.Svifa({ autoRaf: false })
@@ -54,7 +57,9 @@ test('wheelSpeed, wheel and anchors change while the page is open; after destroy
       event.preventDefault()
     })
     const click = () => {
-      document.getElementById('go')!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, detail: 1 }))
+      document
+        .getElementById('go')!
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, detail: 1 }))
       return taken
     }
     const before = click()

@@ -47,7 +47,13 @@ const ENTRY = `import Svifa from '@arcwrightstudio/svifa'
 import '@arcwrightstudio/svifa/svifa.css'
 window.svifa = new Svifa()`
 
-const run = (cmd, cwd) => execSync(cmd, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CI: '1', COREPACK_ENABLE_DOWNLOAD_PROMPT: '0' } }).trim()
+const run = (cmd, cwd) =>
+  execSync(cmd, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, CI: '1', COREPACK_ENABLE_DOWNLOAD_PROMPT: '0' },
+  }).trim()
 // runs a step that uses the package, with what it writes to stderr read too: a warning there is a failure (npm's own lines, such as
 // npx saying it fetched Bun or Deno, are about the machine, not the package)
 const use = (cmd, cwd) => {
@@ -56,7 +62,13 @@ const use = (cmd, cwd) => {
   if (warned.length) throw new Error(warned.join(' | '))
   return out
 }
-const lastJson = (out) => JSON.parse(out.split('\n').filter((l) => l.startsWith('{')).at(-1))
+const lastJson = (out) =>
+  JSON.parse(
+    out
+      .split('\n')
+      .filter((l) => l.startsWith('{'))
+      .at(-1)
+  )
 
 function project(name) {
   const dir = join(HERE, name)
@@ -75,12 +87,19 @@ function project(name) {
 
 function typecheck(dir, resolution) {
   const config = {
-    compilerOptions: { strict: true, noEmit: true, target: 'ES2020', lib: ['ES2020', 'DOM'], skipLibCheck: false, types: [],
+    compilerOptions: {
+      strict: true,
+      noEmit: true,
+      target: 'ES2020',
+      lib: ['ES2020', 'DOM'],
+      skipLibCheck: false,
+      types: [],
       ...{
         bundler: { module: 'ESNext', moduleResolution: 'Bundler' },
         nodenext: { module: 'NodeNext', moduleResolution: 'NodeNext' },
         node10: { module: 'CommonJS', moduleResolution: 'Node10' },
-      }[resolution] },
+      }[resolution],
+    },
     files: ['use.ts', 'react.ts'],
   }
   writeFileSync(join(dir, `tsconfig.${resolution}.json`), JSON.stringify(config))
@@ -100,7 +119,14 @@ const attempt = (name, steps) => {
     try {
       row[label] = step() ? 'ok' : 'FAILED'
     } catch (error) {
-      row[label] = 'FAILED: ' + String(error.stderr || error.message).split('\n').filter(Boolean).slice(-2).join(' | ').slice(0, 220)
+      row[label] =
+        'FAILED: ' +
+        String(error.stderr || error.message)
+          .split('\n')
+          .filter(Boolean)
+          .slice(-2)
+          .join(' | ')
+          .slice(0, 220)
     }
   }
 }
@@ -132,7 +158,13 @@ for (const [name, install] of [
   writeFileSync(join(dir, 'yarn.lock'), '')
   const yarn = 'corepack yarn@4.9.2'
   attempt('yarn4-pnp', [
-    ['install', () => (run(`${yarn} add "@arcwrightstudio/svifa@file:${TGZ}" react@${REACT_VERSION}`, dir), existsSync(join(dir, '.pnp.cjs')))],
+    [
+      'install',
+      () => (
+        run(`${yarn} add "@arcwrightstudio/svifa@file:${TGZ}" react@${REACT_VERSION}`, dir),
+        existsSync(join(dir, '.pnp.cjs'))
+      ),
+    ],
     ['esm', () => lastJson(use(`${yarn} node check.mjs`, dir)).esm],
     ['cjs', () => lastJson(use(`${yarn} node check.cjs`, dir)).cjs],
     // through require: Yarn's ES module loader for Plug'n'Play is experimental and cannot load React itself on current Node
@@ -165,8 +197,18 @@ for (const [name, install] of [
   ])
 }
 
-const failed = Object.entries(results).flatMap(([name, row]) => Object.entries(row).filter(([, v]) => v !== 'ok').map(([k, v]) => `${name} ${k}: ${v}`))
-for (const [name, row] of Object.entries(results)) console.log(name.padEnd(10), Object.entries(row).map(([k, v]) => `${k} ${v === 'ok' ? 'ok' : 'FAILED'}`).join(', '))
+const failed = Object.entries(results).flatMap(([name, row]) =>
+  Object.entries(row)
+    .filter(([, v]) => v !== 'ok')
+    .map(([k, v]) => `${name} ${k}: ${v}`)
+)
+for (const [name, row] of Object.entries(results))
+  console.log(
+    name.padEnd(10),
+    Object.entries(row)
+      .map(([k, v]) => `${k} ${v === 'ok' ? 'ok' : 'FAILED'}`)
+      .join(', ')
+  )
 rmSync(HERE, { recursive: true, force: true })
 if (failed.length) {
   console.error(failed.join('\n'))

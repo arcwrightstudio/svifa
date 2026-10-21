@@ -21,7 +21,9 @@ for (const place of ['examples/html/index.html', 'README.md']) {
     const where = `${place}, ${file}`
     if (pkg !== name) problems.push(`${where}: loads ${pkg}, not ${name}`)
     if (pinned !== version) problems.push(`${where}: pins ${pinned}, but package.json is at ${version}`)
-    const hash = `sha384-${createHash('sha384').update(readFileSync(`${root}${file}`)).digest('base64')}`
+    const hash = `sha384-${createHash('sha384')
+      .update(readFileSync(`${root}${file}`))
+      .digest('base64')}`
     const carried = /\bintegrity="([^"]+)"/.exec(whole)?.[1]
     if (write) {
       const pinnedTag = whole.replace(`${pkg}@${pinned}/`, `${pkg}@${version}/`)
@@ -30,7 +32,8 @@ for (const place of ['examples/html/index.html', 'README.md']) {
         : pinnedTag.replace(/\s*\/?>$/, (end) => ` integrity="${hash}" crossorigin="anonymous"${end}`)
     }
     if (carried !== hash) problems.push(`${where}: integrity ${carried ?? 'missing'}, but this build's is ${hash}`)
-    if (!/\bcrossorigin="anonymous"/.test(whole)) problems.push(`${where}: needs crossorigin="anonymous" for its integrity to be checked`)
+    if (!/\bcrossorigin="anonymous"/.test(whole))
+      problems.push(`${where}: needs crossorigin="anonymous" for its integrity to be checked`)
     return whole
   })
   if (write) writeFileSync(path, text)

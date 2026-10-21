@@ -4,7 +4,10 @@ import { open, settle } from './setup'
 
 test.describe('other scrollers and other input', () => {
   test('a box on the page keeps its own scrollend after the page has glided', async ({ page }) => {
-    await open(page, '<div id="box" style="height: 200px; overflow: auto"><div style="height: 1000px"></div></div><div class="tall"></div>')
+    await open(
+      page,
+      '<div id="box" style="height: 200px; overflow: auto"><div style="height: 1000px"></div></div><div class="tall"></div>'
+    )
     const ends = await page.evaluate(async () => {
       const w = window as any
       const box = document.getElementById('box')!
@@ -32,7 +35,9 @@ test.describe('other scrollers and other input', () => {
     })
     await page.waitForTimeout(400)
     await page.keyboard.press('End')
-    await page.waitForFunction(() => window.scrollY >= document.documentElement.scrollHeight - innerHeight - 1, null, { timeout: 4000 })
+    await page.waitForFunction(() => window.scrollY >= document.documentElement.scrollHeight - innerHeight - 1, null, {
+      timeout: 4000,
+    })
     expect(await page.evaluate(() => [(window as any).g.isGliding, (window as any).result])).toEqual([false, false])
   })
 
@@ -156,7 +161,11 @@ test.describe('layouts', () => {
   })
 
   test('finds a selector that starts with #, and honours a scroll-padding given as a percentage', async ({ page }) => {
-    await open(page, '<div style="height: 1500px"></div><section id="a"><h2 style="margin: 0">Title</h2></section><div class="tall"></div>', 'html { scroll-padding-top: 10%; }')
+    await open(
+      page,
+      '<div style="height: 1500px"></div><section id="a"><h2 style="margin: 0">Title</h2></section><div class="tall"></div>',
+      'html { scroll-padding-top: 10%; }'
+    )
     const result = await page.evaluate(async () => {
       const w = window as any
       const g = new w.Svifa({ autoRaf: false })
@@ -198,7 +207,11 @@ test.describe('holding still', () => {
     await page.waitForTimeout(300)
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.waitForFunction(() => (window as any).result !== null, null, { timeout: 3000 })
-    expect(await page.evaluate(() => [window.scrollY, (window as any).g.isGliding, (window as any).result])).toEqual([6000, false, true])
+    expect(await page.evaluate(() => [window.scrollY, (window as any).g.isGliding, (window as any).result])).toEqual([
+      6000,
+      false,
+      true,
+    ])
   })
 })
 
@@ -223,7 +236,11 @@ test.describe('small things that should be exactly right', () => {
   })
 
   test('target at rest is where the scroller is; an element keeps its own translate after a glide', async ({ page }) => {
-    await open(page, '<section class="move" style="height: 9000px; translate: 0 5px"></section>', '.move { will-change: translate; }')
+    await open(
+      page,
+      '<section class="move" style="height: 9000px; translate: 0 5px"></section>',
+      '.move { will-change: translate; }'
+    )
     const result = await page.evaluate(() => {
       const w = window as any
       const section = document.querySelector('.move') as HTMLElement
@@ -276,7 +293,10 @@ test.describe('small things that should be exactly right', () => {
   test('a link to "#" from an address with no fragment sends hashchange; on an element scroller it is left to the page', async ({
     page,
   }) => {
-    await open(page, '<a id="top" href="#">top</a><div id="box" style="height: 300px; overflow: auto"><div style="height: 2000px"></div></div><div class="tall"></div>')
+    await open(
+      page,
+      '<a id="top" href="#">top</a><div id="box" style="height: 300px; overflow: auto"><div style="height: 2000px"></div></div><div class="tall"></div>'
+    )
     const result = await page.evaluate(async () => {
       const w = window as any
       let changes = 0

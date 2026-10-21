@@ -8,7 +8,10 @@ const SVIFA_CSS = readFileSync(fileURLToPath(new URL('../svifa.css', import.meta
 
 test.describe('the page around Svifa', () => {
   test('IntersectionObserver sees an element come into view during a glide, and scroll events fire as usual', async ({ page }) => {
-    await open(page, '<div style="height: 2000px"></div><section id="far" style="height: 200px">far</section><div class="tall"></div>')
+    await open(
+      page,
+      '<div style="height: 2000px"></div><section id="far" style="height: 200px">far</section><div class="tall"></div>'
+    )
     const result = await page.evaluate(async () => {
       const w = window as any
       let seen = false
@@ -100,7 +103,9 @@ test.describe('what it reports', () => {
 })
 
 test.describe('svifa.css', () => {
-  test('a frame on the page stops catching the wheel while a glide is under way, and catches it again at rest', async ({ page }) => {
+  test('a frame on the page stops catching the wheel while a glide is under way, and catches it again at rest', async ({
+    page,
+  }) => {
     await open(page, '<iframe id="frame" srcdoc="<p>embedded</p>"></iframe><div class="tall"></div>', SVIFA_CSS)
     const events = await page.evaluate(() => {
       const w = window as any
@@ -137,7 +142,9 @@ test.describe('svifa.css', () => {
 })
 
 test.describe('same-page links, the rest of the rules', () => {
-  test('sends no popstate; leaves new-tab links, downloads and (for an element) places outside it to the browser', async ({ page }) => {
+  test('sends no popstate; leaves new-tab links, downloads and (for an element) places outside it to the browser', async ({
+    page,
+  }) => {
     await open(
       page,
       `<a id="tab" href="#far" target="_blank">tab</a> <a id="file" href="#far" download>file</a> <a id="go" href="#far">far</a>
@@ -155,7 +162,9 @@ test.describe('same-page links, the rest of the rules', () => {
         event.preventDefault()
       })
       const click = (id: string) => {
-        document.getElementById(id)!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, detail: 1 }))
+        document
+          .getElementById(id)!
+          .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, detail: 1 }))
         return taken
       }
       const page = new w.Svifa({ autoRaf: false, anchors: true })

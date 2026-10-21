@@ -240,8 +240,7 @@ export class Svifa {
     }
     // an element inside a scrolling box of its own is first brought into view there, as a link to it would be
     if (typeof named !== 'number') reveal(named, this.area)
-    const found =
-      typeof named === 'number' ? named : positionOf(named, this.area, (element) => this.layer?.offsetOf(element) ?? 0)
+    const found = typeof named === 'number' ? named : positionOf(named, this.area, (element) => this.layer?.offsetOf(element) ?? 0)
     const goal = Math.min(Math.max(found + finiteOr(options.offset, 0), 0), limit)
 
     // a scroller that snaps is left to the browser, which puts every move on a snap point: there the move is made at once
@@ -259,9 +258,9 @@ export class Svifa {
       easing: options.easing ?? this.settings.easing,
       lock: options.lock,
     }
-    return new Promise((resolve) => {
+    return new Promise((done) => {
       this.glideTo(goal, how, true)
-      this.finish = resolve
+      this.finish = done
     })
   }
 
@@ -678,6 +677,8 @@ export class Svifa {
 
   private emit() {
     const set = this.listeners.get('scroll')
+    // a copy on purpose: a listener added by another one during this call is first called on the next change, not this one
+    // oxlint-disable-next-line unicorn/no-useless-spread
     if (set) for (const listener of [...set]) listener(this)
   }
 

@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "no-underscore-dangle": ["error", { "allow": ["__VERSION__"] }]
+  },
+  "overrides": [
+    {
+      "files": ["tests/**", "scripts/**", "examples/**"],
+      "rules": {
+        "no-shadow": "off",
+        "no-new": "off",
+        "unicorn/consistent-function-scoping": "off",
+        "unicorn/no-array-sort": "off"
+      }
+    }
+  ]
+}

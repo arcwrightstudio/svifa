@@ -1,5 +1,15 @@
 import { Svifa, type SvifaOptions } from '@arcwrightstudio/svifa'
-import { createContext, createElement, useContext, useEffect, useRef, useState, type ReactElement, type ReactNode, type RefObject } from 'react'
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 
 /** SmoothScroll's props: Svifa's options (with `scroller` also taking a ref) and the children that can reach the Svifa. */
 export type SmoothScrollProps = Omit<SvifaOptions, 'scroller'> & {
@@ -66,7 +76,11 @@ function useMadeSvifa({ scroller, axis, subpixel, reducedMotion, autoRaf, ...fee
         ? (latest.current.subpixel as string | undefined)
         : () => {
             const given = latest.current.subpixel
-            return typeof given === 'function' ? given() : typeof given === 'string' ? document.querySelectorAll(given) : (given ?? [])
+            return typeof given === 'function'
+              ? given()
+              : typeof given === 'string'
+                ? document.querySelectorAll(given)
+                : (given ?? [])
           }
     const made = new Svifa({ ...latest.current.feel, scroller: target, axis, subpixel: source, reducedMotion, autoRaf })
     setSvifa(made)

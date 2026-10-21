@@ -86,7 +86,9 @@ test.describe('scrollTo', () => {
     expect(state.target).toBeCloseTo(state.at + 100, 6)
   })
 
-  test('resolves false, with a warning, for a target that is not on the page, and never throws on a bad selector', async ({ page }) => {
+  test('resolves false, with a warning, for a target that is not on the page, and never throws on a bad selector', async ({
+    page,
+  }) => {
     await open(page, PAGE)
     const warnings: string[] = []
     page.on('console', (message) => message.type() === 'warning' && warnings.push(message.text()))

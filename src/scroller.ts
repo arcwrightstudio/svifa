@@ -189,7 +189,8 @@ function bodyScrolls(horizontal: boolean) {
   const property = horizontal ? 'overflowX' : 'overflowY'
   if (document.scrollingElement === document.body) return false
   return (
-    getComputedStyle(document.documentElement)[property] !== 'visible' && SCROLLS.includes(getComputedStyle(document.body)[property])
+    getComputedStyle(document.documentElement)[property] !== 'visible' &&
+    SCROLLS.includes(getComputedStyle(document.body)[property])
   )
 }
 

@@ -39,15 +39,13 @@ export default defineConfig([
     banner: { js: "'use client'" },
   },
   // for a plain <script> tag: window.Svifa, readable and minified (keepNames: the class is still called Svifa in devtools)
-  ...[false, true].map(
-    (minify): UserConfig => ({
-      ...shared,
-      entry: { [minify ? 'svifa.global.min' : 'svifa.global']: 'src/global.ts' },
-      format: 'iife',
-      platform: 'browser',
-      minify,
-      // named as written (svifa.global.js), with no format in the name
-      outputOptions: (options) => ({ ...options, entryFileNames: '[name].js', keepNames: true }),
-    })
-  ),
+  ...[false, true].map((minify): UserConfig => ({
+    ...shared,
+    entry: { [minify ? 'svifa.global.min' : 'svifa.global']: 'src/global.ts' },
+    format: 'iife',
+    platform: 'browser',
+    minify,
+    // named as written (svifa.global.js), with no format in the name
+    outputOptions: (options) => ({ ...options, entryFileNames: '[name].js', keepNames: true }),
+  })),
 ])

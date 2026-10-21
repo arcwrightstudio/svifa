@@ -16,6 +16,7 @@ Development needs Node 22.18, 24.11, 26 or later.
 
 ```sh
 npm ci                   # the tools (and npx playwright install, once, for the browsers)
+npm run lint             # oxlint for defects, and Prettier for the code style (npm run format applies it)
 npm run typecheck        # the library, then the tests and the config files
 npm run build            # dist/: the ES module, the CommonJS file, the script builds, the React entry and the types
 npm test                 # the suite in Chromium, Firefox and WebKit, about a minute
@@ -47,6 +48,14 @@ drawn on the chosen elements. Anything else that moves the scroller (a key, the 
   (`autoRaf: false`), so every run sees the same frames at any chosen refresh rate. A test for something only some engines have is
   tagged (`@chromium-only`, `@not-webkit`) or listed in `playwright.config.ts`, so it runs only there and nothing is reported
   skipped.
+
+### Code style
+
+TypeScript and JavaScript are formatted by [Prettier](https://prettier.io) with the settings in `.prettierrc.json`: no
+semicolons, single quotes, lines of up to 132 characters. [oxlint](https://oxc.rs/docs/guide/usage/linter.html) checks the code for
+defects with its correctness and suspicious rules, as `.oxlintrc.json` sets them (the tests may reuse a name inside the page they
+drive, and call a constructor for what it does). `npm run lint` checks both, and CI runs it on every change. An exception to a
+rule is rare, and is written where it applies, with the reason beside it.
 
 ### Rules every change follows
 

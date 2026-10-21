@@ -151,7 +151,8 @@ test.describe('when drawing between pixels is not wanted or not possible', () =>
     const result = await page.evaluate(() => {
       const w = window as any
       const supports = CSS.supports.bind(CSS)
-      CSS.supports = ((...args: [string, string?]) => (args[0] === 'translate' ? false : supports(...(args as [string])))) as typeof CSS.supports
+      CSS.supports = ((...args: [string, string?]) =>
+        args[0] === 'translate' ? false : supports(...(args as [string]))) as typeof CSS.supports
       const g = new w.Svifa({ autoRaf: false, subpixel: '.move' })
       w.frame(g)
       w.wheel(window, 77.7)
@@ -197,7 +198,9 @@ test.describe('when drawing between pixels is not wanted or not possible', () =>
   })
 })
 
-test('draws a sticky element exactly in every frame as it reaches its offset, even a fraction of a layout step away', async ({ page }) => {
+test('draws a sticky element exactly in every frame as it reaches its offset, even a fraction of a layout step away', async ({
+  page,
+}) => {
   // the pin's natural place is 100.03125 px down (two layout steps past a whole pixel), so in one frame of a slow glide the browser has
   // it 1/32 px short of sticking while the exact position has it travelling
   await open(
@@ -234,7 +237,9 @@ test('draws a sticky element exactly in every frame as it reaches its offset, ev
 })
 
 test.describe('the browser’s own grid', () => {
-  test('never leaves more than half a pixel to draw, in a browser that cuts positions down as in one that rounds them', async ({ page }) => {
+  test('never leaves more than half a pixel to draw, in a browser that cuts positions down as in one that rounds them', async ({
+    page,
+  }) => {
     await open(page, PAGE, STYLE)
     const worst = await page.evaluate(() => {
       const w = window as any
@@ -363,7 +368,11 @@ test.describe('the end of the page', () => {
     ['a page that grows shorter under a glide', '9000px', 0.7],
   ] as const) {
     test(`is never drawn more than half a pixel past, and rested on exactly, on ${what}`, async ({ page }) => {
-      await open(page, `<main><section class="move" id="body" style="height: ${height}"></section></main>`, '.move { will-change: translate; }')
+      await open(
+        page,
+        `<main><section class="move" id="body" style="height: ${height}"></section></main>`,
+        '.move { will-change: translate; }'
+      )
       const result = await page.evaluate((shrink) => {
         const w = window as any
         const body = document.getElementById('body') as HTMLElement
@@ -394,7 +403,11 @@ test.describe('the end of the page', () => {
 })
 
 test('is left off for a horizontal scroller in right-to-left content', async ({ page }) => {
-  await open(page, '<div id="row" dir="rtl" style="width: 600px; overflow: auto"><div class="move" style="width: 3000px; height: 20px"></div></div>', STYLE)
+  await open(
+    page,
+    '<div id="row" dir="rtl" style="width: 600px; overflow: auto"><div class="move" style="width: 3000px; height: 20px"></div></div>',
+    STYLE
+  )
   const cls = await page.evaluate(() => {
     const w = window as any
     const row = document.getElementById('row')!

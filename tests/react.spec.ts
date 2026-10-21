@@ -80,7 +80,13 @@ test('SmoothScroll makes one Svifa (StrictMode included), retunes it when a prop
     w.made.raf(1000)
     const prevented = w.wheel(window, 200)
     for (let t = 1016; w.made.isGliding; t += 16) w.made.raf(t)
-    return { classes: document.documentElement.className, prevented, y: window.scrollY, reports: w.reports > 0, lerp: w.made.options.lerp }
+    return {
+      classes: document.documentElement.className,
+      prevented,
+      y: window.scrollY,
+      reports: w.reports > 0,
+      lerp: w.made.options.lerp,
+    }
   })
   expect(first).toEqual({ classes: 'svifa', prevented: true, y: 200, reports: true, lerp: 0.1 })
 

@@ -86,9 +86,11 @@
   "scripts": {
     "build": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsdown",
     "typecheck": "tsc && tsc -p tests",
+    "lint": "oxlint --deny-warnings src tests scripts examples && prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.ts\" \"examples/**/*.{ts,tsx,mjs,css}\"",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.ts\" \"examples/**/*.{ts,tsx,mjs,css}\"",
     "test": "playwright test",
     "check:package": "publint && attw --pack . --exclude-entrypoints svifa.css && node scripts/check-example.mjs",
-    "prepublishOnly": "npm run typecheck && npm run build && npm test && npm run check:package --dry-run=false",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm run build && npm test && npm run check:package --dry-run=false",
     "check:installs": "node scripts/check-installs.mjs"
   },
   "publishConfig": {
@@ -101,6 +103,8 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "esbuild": "0.28.2",
+    "oxlint": "1.88.0",
+    "prettier": "3.9.10",
     "publint": "0.3.25",
     "react": "19.3.1",
     "react-dom": "19.3.1",
