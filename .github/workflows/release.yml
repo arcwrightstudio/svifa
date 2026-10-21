@@ -1,7 +1,9 @@
 name: Release
 
-# Publishing a GitHub release named after the version (v1.2.3) checks everything again and publishes that version to npm with
-# provenance: npm shows that it was built here, from this repository, by this workflow.
+# Publishing a GitHub release named after the version (v1.2.3) checks everything again and stages that version on npm with
+# provenance: npm shows that it was built here, from this repository, by this workflow. It goes live once a maintainer approves it
+# on npmjs.com (the package's Staged Packages tab, with two-factor authentication). npm trusts this workflow by OpenID Connect, so
+# no token is kept anywhere.
 on:
   release:
     types: [published]
@@ -31,8 +33,5 @@ jobs:
           fi
       - run: npm ci
       - run: npx playwright install --with-deps chromium firefox webkit
-      # npm runs every check before it publishes (prepublishOnly): types, the build, the tests and the package checks
-      - run: npm publish --provenance
-        env:
-          # npm signs in by trusted publishing once that is set up for the package, and needs no token; until then, by this one
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # npm runs every check before it stages (prepublishOnly): types, the build, the tests and the package checks
+      - run: npm stage publish --provenance

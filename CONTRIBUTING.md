@@ -67,7 +67,8 @@ newest Node release and on the newest long-term support release.
 Raise the version with `npm version 1.2.3 --no-git-tag-version` (it updates `package.json` and the lockfile), build, pin the CDN
 tags to it with `node scripts/check-example.mjs --write`, add the version to `CHANGELOG.md`, commit, and run `npm run check:installs`.
 Then publish a GitHub release named after the version (`v1.2.3`) on that commit: the Release workflow checks everything again and
-publishes to npm with provenance.
+stages the version on npm with provenance. It goes live when a maintainer approves it on npmjs.com, in the package's Staged
+Packages tab. `npm stage publish --dry-run` previews what will be staged.
 
 ## Security
 
