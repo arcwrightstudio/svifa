@@ -12,7 +12,7 @@ This file is the complete reference for writing code that uses Svifa. The README
 
 npm install @arcwrightstudio/svifa (or pnpm add, yarn add, bun add, deno add npm:@arcwrightstudio/svifa)
 
-Script tag: https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.0.0/dist/svifa.global.min.js sets window.Svifa.
+Script tag: https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.1.0/dist/svifa.global.min.js sets window.Svifa.
 
 ## Rules that matter
 
