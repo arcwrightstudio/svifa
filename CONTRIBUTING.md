@@ -47,6 +47,7 @@ against another React version (React 18 is supported as well as 19).
 
 - A fix comes with a test that fails without it. Write the test first, see it fail against the old code, then fix, and put the fault
   back once more to see the test catch it.
+- A new feature or option comes with tests for what it does, in every engine it runs in, and for what it must leave alone.
 - Motion is judged in time, never in frames: every rule gives the same result at any refresh rate, from 60 to 1000 Hz
   (`w.frame(g, hz)`). A test on the browser's own frames waits for what it checks, never for a number of frames.
 - Positions read back from the browser carry rounding (a float32 in Chromium); compare with the slop `scroller.ts` uses, not `===`.
