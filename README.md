@@ -28,7 +28,7 @@ scroll position.
   </picture>
 </p>
 
-<p align="center"><sub>Measured with the built library on the test clock; <code>node scripts/settle-chart.mjs</code> draws this chart.</sub></p>
+<p align="center"><sub>Measured frame by frame with the built library, on the test clock.</sub></p>
 
 Svifa fixes it where it starts. It scrolls to the nearest pixel the browser can show and draws the fraction left over on the GPU
 (the `subpixel` option), so the page moves continuously and comes to rest exactly on the browser's own grid. Around that, it gets
