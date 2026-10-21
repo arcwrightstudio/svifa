@@ -9,19 +9,25 @@ export const ORIGIN = 'http://svifa.test'
 // the script build is served from an address of its own, which is how a coverage run tells it apart from everything else on the page
 export const SCRIPT_URL = `${ORIGIN}/svifa.global.js`
 
-export async function open(page: Page, body = '', css = '') {
-  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
-      html, body { margin: 0; }
-      .tall { height: 10000px; background: linear-gradient(#eee, #ccc); }
-      ${css}
-    </style></head><body>${body || '<div class="tall"></div>'}</body></html>`
-  await page.route(`${ORIGIN}/**`, (route) =>
-    route.request().url() === SCRIPT_URL
-      ? route.fulfill({ contentType: 'text/javascript', body: script })
-      : route.fulfill({ contentType: 'text/html', body: html })
-  )
+// the page's styles are a stylesheet of their own and the script build is loaded by the page's markup, so a page under a strict
+// Content Security Policy holds nothing inline and assigns no script address from script
+const STYLE_URL = `${ORIGIN}/page.css`
+
+/** Opens the test page: `body` in place of the tall default, `css` added to its styles, `headers` sent with it. */
+export async function open(page: Page, body = '', css = '', headers: Record<string, string> = {}) {
+  const style = `html, body { margin: 0; }
+    .tall { height: 10000px; background: linear-gradient(#eee, #ccc); }
+    ${css}`
+  const html = `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${STYLE_URL}"></head><body>${
+    body || '<div class="tall"></div>'
+  }<script src="${SCRIPT_URL}"></script></body></html>`
+  await page.route(`${ORIGIN}/**`, (route) => {
+    const url = route.request().url()
+    if (url === SCRIPT_URL) return route.fulfill({ contentType: 'text/javascript', body: script })
+    if (url === STYLE_URL) return route.fulfill({ contentType: 'text/css', body: style })
+    return route.fulfill({ contentType: 'text/html', headers, body: html })
+  })
   await page.goto(`${ORIGIN}/page`)
-  await page.addScriptTag({ url: SCRIPT_URL })
   await page.evaluate(() => {
     const w = window as unknown as Record<string, unknown>
     // the clock: frames at a set rate, in milliseconds

@@ -548,6 +548,10 @@ Firefox 97, Safari 18.2); where it is missing, a page with a scroll bar that tak
 Taking over from a key, a touch and a script's scroll is tested in all three engines, from find in page in Chromium and Firefox,
 and from a drag of the scroll bar in Chromium.
 
+Svifa works on a page with a strict Content Security Policy: it writes no inline script or style attribute, evaluates no strings,
+fetches nothing, and passes no string to a script sink, so `require-trusted-types-for 'script'` holds too. It styles elements
+only through their `style` property, which no policy restricts. This is tested in all three engines.
+
 ## Package
 
 | Import                                                        | File                                                   |

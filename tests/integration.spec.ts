@@ -38,6 +38,8 @@ test.describe('the page around Svifa', () => {
     const widths = await page.evaluate(async () => {
       const w = window as any
       const bar = document.getElementById('bar')!
+      // the animation starts with the page's styles, a frame after they arrive in some browsers: measured once it runs
+      await Promise.all(bar.getAnimations().map((animation) => animation.ready))
       const before = bar.getBoundingClientRect().width
       w.g = new w.Svifa()
       await w.g.scrollTo(4600)

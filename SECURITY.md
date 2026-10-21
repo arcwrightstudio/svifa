@@ -32,7 +32,10 @@ Svifa runs inside the page, with the page's own privileges. Its security require
   `scroll-behavior`; a `tabindex` on the place a same-page link leads to, for as long as it has the keyboard focus; and, with
   `anchors`, the address of the same page in the browser's history. Each change to the page is put back when Svifa is done with it;
   the history entry stays, as the browser's own entry for that link would.
-- It checks every number it is given: a number must be finite and within its range, or the default is used instead.
+- It checks every option it is given: a number must be finite and within its range, and an easing a function, or the default is
+  used instead.
+- It makes each change through the DOM and the CSSOM, so it works under a strict Content Security Policy with Trusted Types
+  required, which the tests prove in all three engines.
 - With `anchors`, it acts only on links to the same page (the same origin, path and query) and only scrolls to the element the
   link names.
 

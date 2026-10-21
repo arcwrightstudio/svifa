@@ -24,6 +24,7 @@ Script tag: https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.0.0/dist/svifa
 - Optional CSS: import '@arcwrightstudio/svifa/svifa.css' (stop() then also holds the keyboard and the scroll bar).
 - Reduced motion is followed by default: the wheel stays the browser's and scrollTo moves at once.
 - A scroller with scroll-snap-type is left to the browser (the wheel scrolls natively; scrollTo moves at once).
+- Works under a strict Content Security Policy, Trusted Types included: no inline script or style, no eval, nothing fetched.
 
 ## Plain JavaScript
 
