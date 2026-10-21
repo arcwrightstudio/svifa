@@ -1,5 +1,5 @@
 // configure(): how Svifa feels, changed while the page is open.
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { open } from './setup'
 
 // Frames (at 60 Hz) a 300 px wheel turn takes to rest, from the page's top.

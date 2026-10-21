@@ -1,7 +1,7 @@
 // What the page around Svifa relies on keeps working, and what the browser does on its own takes over from a glide.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { open } from './setup'
 
 const SVIFA_CSS = readFileSync(fileURLToPath(new URL('../svifa.css', import.meta.url)), 'utf8')

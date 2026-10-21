@@ -1,7 +1,7 @@
 // Real scroll bars, as on Windows, which Chromium shows headless once its default of hiding them is dropped.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { open } from './setup'
 
 const SVIFA_CSS = readFileSync(fileURLToPath(new URL('../svifa.css', import.meta.url)), 'utf8')

@@ -40,6 +40,9 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
+      # how much of the source the tests run (measured in Chromium); below the floors in scripts/coverage.mjs it fails
+      - if: matrix.node == 'latest'
+        run: npm run coverage
       - run: npm run check:package
 
   # a pull request may not bring in a dependency with a known vulnerability or a licence that does not allow open use

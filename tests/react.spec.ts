@@ -1,11 +1,13 @@
 // The React entry, in a real React 19 app under StrictMode (which makes, takes off and makes again every effect in development).
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { build } from 'esbuild'
-import { open } from './setup'
+import { ORIGIN, open } from './setup'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
+const APP_URL = `${ORIGIN}/react-app.js`
 // SVIFA_REACT_DIR=<a node_modules folder> runs these with another React (React 18, say) in place of the one installed here
 const OTHER = process.env.SVIFA_REACT_DIR
 const alias = OTHER ? { react: join(OTHER, 'react'), 'react-dom': join(OTHER, 'react-dom') } : undefined
@@ -58,13 +60,17 @@ async function mount(page: Page, which: 'page' | 'box') {
     define: { 'process.env.NODE_ENV': '"development"', __VERSION__: '"test"' },
     alias,
     logLevel: 'silent',
+    // a coverage run maps what ran back to src/ through it
+    sourcemap: 'inline',
   })
   const errors: string[] = []
   page.on('console', (message) => message.type() === 'error' && errors.push(message.text()))
   page.on('pageerror', (error) => errors.push(String(error)))
   await open(page, '<div id="root"></div><div class="tall"></div>')
   await page.evaluate((which) => ((window as any).which = which), which)
-  await page.addScriptTag({ content: bundled.outputFiles[0].text })
+  // served from an address of its own, as the script build is (the route registered last is asked first)
+  await page.route(APP_URL, (route) => route.fulfill({ contentType: 'text/javascript', body: bundled.outputFiles[0].text }))
+  await page.addScriptTag({ url: APP_URL })
   await page.waitForFunction(() => (window as any).probe != null, null, { timeout: 5000 })
   test.info().annotations.push({ type: 'react', description: await page.evaluate(() => (window as any).reactVersion) })
   return errors

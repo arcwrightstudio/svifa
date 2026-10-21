@@ -1,5 +1,5 @@
 // Edges of the page that Svifa meets in real sites: other scrollers, keys, scripts, snapping, odd layouts, and its own lifecycle.
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { open, settle } from './setup'
 
 test.describe('other scrollers and other input', () => {

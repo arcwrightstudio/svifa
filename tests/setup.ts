@@ -6,6 +6,8 @@ import type { Page } from '@playwright/test'
 
 const script = readFileSync(fileURLToPath(new URL('../dist/svifa.global.js', import.meta.url)), 'utf8')
 export const ORIGIN = 'http://svifa.test'
+// the script build is served from an address of its own, which is how a coverage run tells it apart from everything else on the page
+export const SCRIPT_URL = `${ORIGIN}/svifa.global.js`
 
 export async function open(page: Page, body = '', css = '') {
   const html = `<!doctype html><html><head><meta charset="utf-8"><style>
@@ -13,9 +15,13 @@ export async function open(page: Page, body = '', css = '') {
       .tall { height: 10000px; background: linear-gradient(#eee, #ccc); }
       ${css}
     </style></head><body>${body || '<div class="tall"></div>'}</body></html>`
-  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: 'text/html', body: html }))
+  await page.route(`${ORIGIN}/**`, (route) =>
+    route.request().url() === SCRIPT_URL
+      ? route.fulfill({ contentType: 'text/javascript', body: script })
+      : route.fulfill({ contentType: 'text/html', body: html })
+  )
   await page.goto(`${ORIGIN}/page`)
-  await page.addScriptTag({ content: script })
+  await page.addScriptTag({ url: SCRIPT_URL })
   await page.evaluate(() => {
     const w = window as unknown as Record<string, unknown>
     // the clock: frames at a set rate, in milliseconds

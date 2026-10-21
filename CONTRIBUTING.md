@@ -20,6 +20,7 @@ npm run lint             # oxlint for defects, and Prettier for the code style (
 npm run typecheck        # the library, then the tests and the config files
 npm run build            # dist/: the ES module, the CommonJS file, the script builds, the React entry and the types
 npm test                 # the suite in Chromium, Firefox and WebKit, about a minute
+npm run coverage         # how much of src/ the tests run, file by file; fails below the floors in scripts/coverage.mjs
 npm run check:package    # the exports and types as every module resolution reads them, and the CDN tags' pinned hashes
 npm run check:installs   # installs the packed package with npm, pnpm, Yarn 1 and 4 (Plug'n'Play), Bun and Deno; fails on warnings
 ```
