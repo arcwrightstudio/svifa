@@ -6,22 +6,34 @@ on:
   release:
     types: [published]
 
-permissions:
-  contents: read
-  id-token: write
+permissions: {}
+
+# one release at a time, and never one cut short
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   publish:
+    name: stage on npm
     runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: read # to check out the code
+      id-token: write # to sign in to npm by OpenID Connect and sign the provenance statement
     steps:
       # the name for the branch checkout starts its repository with (unset, git prints a hint about its default)
       - run: git config --global init.defaultBranch main
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      # each action is pinned to the commit of its release, which Dependabot keeps current
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: lts/*
           registry-url: https://registry.npmjs.org
-          cache: npm
+          # a release installs fresh, never from a cache another run could have filled
+          package-manager-cache: false
       - name: Check the release is named after this version
         run: |
           version="v$(node -p "require('./package.json').version")"
