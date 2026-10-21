@@ -76,7 +76,9 @@ test.describe('living with everything else on the page', () => {
       w.g = new w.Svifa({ autoRaf: true })
       w.wheel(window, 300)
     })
-    await page.waitForFunction(() => !(window as any).g.isGliding, null, { timeout: 5000 })
+    // Svifa's scrollend comes a frame after the glide arrives (later on a busy machine): wait for it, then give a second one,
+    // the browser's own for the last move, the time it would take to show
+    await page.waitForFunction(() => !(window as any).g.isGliding && (window as any).ends > 0, null, { timeout: 5000 })
     await page.waitForTimeout(400)
     expect(await page.evaluate(() => (window as any).ends)).toBe(1)
   })
