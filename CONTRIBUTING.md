@@ -26,7 +26,12 @@ npm run check:installs   # installs the packed package with npm, pnpm, Yarn 1 an
 `SVIFA_REACT_DIR=<a node_modules folder with another React> npx playwright test tests/react.spec.ts` runs the React entry's tests
 against another React version (React 18 is supported as well as 19).
 
-### How the code is laid out
+### How it works
+
+Svifa is one object per scroller. Its input handlers (the wheel, keys, touch, same-page links) turn what the reader does into a
+place to go, or step aside for the browser. A frame loop, running only while something moves, carries the position toward that
+place by the time since the last frame. Each move is written on the browser's own pixel grid, and the part of a pixel left over is
+drawn on the chosen elements. Anything else that moves the scroller (a key, the scroll bar, a script) takes over at once. The files:
 
 - `src/svifa.ts`: the `Svifa` class: options, input (wheel, keys, touch, anchors), the frame loop, the motion (a damped approach by
   `lerp`, or a timed curve), what it reports (`scroll` events, one `scrollend` per glide, classes).

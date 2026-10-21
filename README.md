@@ -7,6 +7,8 @@
 
 <p align="center"><strong>Smooth scroll for the web.</strong><br>Drawn between pixels, the same at every refresh rate, and out of the way of everything else.</p>
 
+<p align="center"><a href="https://www.bestpractices.dev/projects/15754"><img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/15754/badge"></a></p>
+
 Svifa is a smooth scroll library for the browser. It makes the mouse wheel and the trackpad scroll smoothly, on the whole page or
 inside any scrolling element, and leaves everything else to the browser.
 
@@ -568,10 +570,25 @@ Every option, method and property is documented in the types, so an editor or an
 written. The package also carries [`llms.txt`](./llms.txt) (`node_modules/@arcwrightstudio/svifa/llms.txt`): the whole API and the
 rules for using it in one plain file, to give an AI coding tool as context.
 
+## Roadmap
+
+What Svifa is set to do next, in order:
+
+- Snapping: glide to the snap points a page sets in CSS.
+- Two axes at once, for a map, a board or a wide table.
+- Ready-made components for Vue, Svelte, Solid, Angular and Astro, as there is for React.
+- Keeping up with browsers: a new scrolling feature is adopted as browsers ship it, and anything it makes unnecessary is removed.
+
+What it will not do: effects driven by scrolling (parallax, reveals), which its scroll event and the browser's own scroll-driven
+animations already make possible; virtual scrolling of long lists; and work in browsers that lack what it needs, which keep their
+own scrolling.
+
 ## Working on Svifa
 
-[CONTRIBUTING.md](./CONTRIBUTING.md) has the commands and the rules every change follows. Report a security issue as
-[SECURITY.md](./SECURITY.md) describes, and ask questions in [Discussions](https://github.com/arcwrightstudio/svifa/discussions).
+[CONTRIBUTING.md](./CONTRIBUTING.md) has the commands, how the code works and the rules every change follows, and
+[GOVERNANCE.md](./GOVERNANCE.md) who decides and how. Report a security issue as [SECURITY.md](./SECURITY.md) describes, which also
+says what Svifa can and cannot promise and how to verify a release, and ask questions in
+[Discussions](https://github.com/arcwrightstudio/svifa/discussions).
 
 ## License
 
