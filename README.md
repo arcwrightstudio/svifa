@@ -1,8 +1,5 @@
 <h1 align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arcwrightstudio/svifa/main/.github/assets/logo-dark.svg">
-    <img alt="Svifa" src="https://raw.githubusercontent.com/arcwrightstudio/svifa/main/.github/assets/logo-light.svg" height="72">
-  </picture>
+  <img alt="Svifa" src="https://raw.githubusercontent.com/arcwrightstudio/svifa/main/.github/assets/logo.svg" height="96">
 </h1>
 
 <p align="center"><strong>Smooth scroll for the web.</strong><br>Drawn between pixels, the same at every refresh rate, and out of the way of everything else.</p>
@@ -24,10 +21,7 @@ a pixel. Moving the whole page with a transform instead avoids it, but breaks st
 scroll position.
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arcwrightstudio/svifa/main/.github/assets/settle-dark.svg">
-    <img alt="The last 6 pixels of one wheel scroll at 240 Hz. On whole pixels the page waits, then hops a pixel, holding 44 frames (183 ms) before the last hop. Drawn by Svifa, it moves a little every frame." src="https://raw.githubusercontent.com/arcwrightstudio/svifa/main/.github/assets/settle-light.svg" width="680">
-  </picture>
+  <img alt="The last 6 pixels of one wheel scroll at 240 Hz. On whole pixels the page waits, then hops a pixel, holding 44 frames (183 ms) before the last hop. Drawn by Svifa, it moves a little every frame." src="https://raw.githubusercontent.com/arcwrightstudio/svifa/main/.github/assets/settle.svg" width="728">
 </p>
 
 <p align="center"><sub>Measured frame by frame with the built library, on the test clock.</sub></p>

@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 543.6595744680851" width="680" height="543.6595744680851" role="img" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" aria-label="The last 6 pixels of one wheel scroll at 240 Hz. On whole pixels the page waits, then hops a pixel; before the last hop it holds 44 frames (183 ms). Drawn by Svifa, it moves a little every frame.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -24 728 591.66" width="728" height="592" role="img" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" aria-label="The last 6 pixels of one wheel scroll at 240 Hz. On whole pixels the page waits, then hops a pixel; before the last hop it holds 44 frames (183 ms). Drawn by Svifa, it moves a little every frame.">
+<rect x="-24" y="-24" width="728" height="591.66" rx="16" fill="#0D1117"/>
 <defs><clipPath id="plot"><rect x="64" y="80" width="592" height="423.6595744680851"/></clipPath></defs>
 <text x="0" y="22" fill="#F4F4FA" font-size="17" font-weight="600">The last 6 px of a scroll, frame by frame at 240 Hz</text>
 <g font-size="13" fill="#F4F4FA">
