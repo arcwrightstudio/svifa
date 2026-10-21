@@ -2,7 +2,10 @@
 
 ## Supported versions
 
-Security fixes are released for the latest version of Svifa.
+Svifa 1.x is the supported line. Each release is supported, for every browser that README.md's "Browser support" names, until the
+next one is published: a fix, a security fix included, comes in a new version, and the release before it stops receiving fixes
+then. When a new major version is released, the last release of the major version before it receives security fixes for six more
+months, and its end date is given in the release notes and here.
 
 ## Reporting a vulnerability
 
@@ -56,6 +59,43 @@ It checks the registry signature and the provenance of every installed package, 
 short-lived certificate that Sigstore issues to the workflow itself through GitHub's OpenID Connect, and is recorded in Sigstore's
 public transparency log; no long-lived private key exists, on npm or anywhere else. For a copy loaded from a CDN, the README's
 `integrity` hashes are the published files' own, and the browser refuses any file that differs.
+
+The provenance also says who built the release. On the version's page on npmjs.com, under Provenance, check that the source commit
+is in `github.com/arcwrightstudio/svifa`, that it is the commit the release's tag (`v1.0.0` for 1.0.0) points to, and that the
+build file is `.github/workflows/release.yml`. A version built anywhere else, or by any other workflow, is not one of Svifa's.
+
+Each package also carries its software bill of materials, `dist/sbom.cdx.json` (CycloneDX, written by `npm sbom`), which names
+the version and its license and lists its components: none, since Svifa has no runtime dependencies.
+
+## Dependencies
+
+Svifa's released files contain no third-party code. Development tools are added only when a task needs one, chosen for being
+maintained and widely used, installed at the exact versions and integrity hashes in `package-lock.json` (`npm ci`), and kept
+current by Dependabot, which proposes a new version only once it has been public for a week, the time in which a malicious release
+is usually found and taken down. Thresholds for what the checks find:
+
+- Every pull request is checked by dependency review against the GitHub Advisory Database, and cannot be merged while it adds a
+  dependency with a known vulnerability of any severity or a license outside those that allow open use.
+- A Dependabot security alert is fixed within 14 days when it is critical or high, and within 30 days otherwise.
+- No release is made while any installed package has a known vulnerability: the Release workflow runs `npm audit` and stops at
+  any finding.
+- A vulnerability in a component that does not affect Svifa is answered with a VEX statement (OpenVEX), published with the
+  advisory or the release notes, saying why it cannot be exploited through Svifa.
+
+## Static analysis
+
+CodeQL, with its extended security queries, analyses every pull request and every push to `main`. A pull request with an alert
+of high or critical security severity, or any error, cannot be merged. Any other alert is fixed, or dismissed with a written
+reason, before the next release.
+
+## Secrets and credentials
+
+The project keeps no long-lived secret: the Release workflow signs in to npm through OpenID Connect, and no token is stored in the
+repository, its settings or its workflows. Secret scanning and push protection refuse a credential pushed to the repository. The
+accounts that can change the repository or publish to npm use two-factor authentication. A token a maintainer uses for the
+project is scoped to what it is for and kept in the operating system's credential store, never in a file in a checkout. Tokens
+are replaced at least once a year, and at once if one may have been exposed, in which case it is revoked before anything else is
+done.
 
 ## Assurance case
 

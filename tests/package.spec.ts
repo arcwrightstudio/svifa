@@ -3,7 +3,7 @@
 
 // The package as a project receives it: importable on a server without a page, usable from CommonJS, and typed for both.
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -90,5 +90,22 @@ test.describe('the package', () => {
     execFileSync(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(dir, 'tsconfig.json')], {
       encoding: 'utf8',
     })
+  })
+
+  test('carries its bill of materials: this version, its license, no third-party component, nothing two builds would differ in', () => {
+    const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+    const bom = JSON.parse(readFileSync(join(root, 'dist/sbom.cdx.json'), 'utf8'))
+    expect(pkg.files).toContain('dist')
+    expect(bom.bomFormat).toBe('CycloneDX')
+    expect(bom.metadata.component).toMatchObject({
+      group: '@arcwrightstudio',
+      name: 'svifa',
+      version: pkg.version,
+      purl: `pkg:npm/%40arcwrightstudio/svifa@${pkg.version}`,
+      licenses: [{ license: { id: 'MIT' } }],
+    })
+    expect(Object.keys(pkg.dependencies ?? {})).toEqual([])
+    expect(bom.components).toEqual([])
+    expect([bom.serialNumber, bom.metadata.timestamp, bom.metadata.tools[0].version]).toEqual([undefined, undefined, undefined])
   })
 })

@@ -18,7 +18,7 @@ Development needs Node 22.18, 24.11, 26 or later.
 npm ci                   # the tools (and npx playwright install, once, for the browsers)
 npm run lint             # oxlint for defects, and Prettier for the code style (npm run format applies it)
 npm run typecheck        # the library, then the tests and the config files
-npm run build            # dist/: the ES module, the CommonJS file, the script builds, the React entry and the types
+npm run build            # dist/: the ES module, the CommonJS file, the script builds, the React entry, the types, the SBOM
 npm test                 # the suite in Chromium, Firefox and WebKit, about a minute
 npm run coverage         # how much of src/ the tests run, file by file; fails below the floors in scripts/coverage.mjs
 npm run check:package    # the exports and types as every module resolution reads them, and the CDN tags' pinned hashes
@@ -27,6 +27,14 @@ npm run check:installs   # installs the packed package with npm, pnpm, Yarn 1 an
 
 `SVIFA_REACT_DIR=<a node_modules folder with another React> npx playwright test tests/react.spec.ts` runs the React entry's tests
 against another React version (React 18 is supported as well as 19).
+
+### When the checks run
+
+On every pull request and every push to `main`, CI runs the lint, the license lines, the types, the build, the suite in all three
+engines on the newest Node release and the newest long-term support release, the coverage floors, the package checks and the
+reproducible build check; a pull request also gets dependency review and the sign-off check, and CodeQL analyses both. A pull
+request can merge only once the required checks pass. Before a version is staged on npm, the Release workflow checks the
+dependencies with `npm audit` and runs the lint, the types, the build, the suite and the package checks again.
 
 ### How it works
 
