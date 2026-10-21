@@ -12,6 +12,8 @@ Svifa follows [semantic versioning](https://semver.org).
   drawn at its end.
 - An `easing` that is not a function is left out, as a number that is not finite already was. A timed glide given one stopped with
   an error on its first frame.
+- With `anchors`, keyboard focus now follows a same-page link pressed with Enter in Firefox too, which counts that press as one
+  click.
 
 ## 1.0.0
 

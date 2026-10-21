@@ -498,8 +498,10 @@ export class Svifa {
         setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: from, newURL: url.href })))
       }
     }
-    // a click with no pointer behind it (Enter on the link) moves keyboard focus to the place
-    if (event.detail === 0 && element) focusPlace(element)
+    // a click with no pointer behind it (Enter on the link) moves keyboard focus to the place: one with no count, or one of no
+    // pointer type (Firefox counts Enter as one click)
+    const keyboard = event.detail === 0 || (event as PointerEvent).pointerType === ''
+    if (keyboard && element) focusPlace(element)
   }
 
   // ---- the browser's own scrolling

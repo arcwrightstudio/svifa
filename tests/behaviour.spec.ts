@@ -421,6 +421,33 @@ test.describe('same-page links (anchors)', () => {
     expect(state).toEqual({ active: true, tabindex: '-1', y: 0, after: null })
   })
 
+  // the browser's own events: Firefox gives the click of Enter a count of 1, and every browser gives it no pointer type
+  test('Enter on a focused link carries focus to the place in every browser; a press of the mouse does not', async ({ page }) => {
+    await open(page, LINKS)
+    await page.evaluate(() => {
+      const w = window as any
+      w.g = new w.Svifa({ autoRaf: false, anchors: true })
+      w.frame(w.g)
+    })
+    // lets the glide arrive, and answers where focus is before putting the page back at the top
+    const focusAfter = () =>
+      page.evaluate(() => {
+        const w = window as any
+        for (let i = 0; i < 600 && w.g.isGliding; i++) w.frame(w.g)
+        const active = document.activeElement as HTMLElement | null
+        const id = active?.id ?? ''
+        active?.blur()
+        window.scrollTo({ top: 0, behavior: 'instant' })
+        return id
+      })
+    await page.click('#go')
+    const mouse = await focusAfter()
+    await page.focus('#go')
+    await page.keyboard.press('Enter')
+    const key = await focusAfter()
+    expect({ mouse: mouse === 'far', key }).toEqual({ mouse: false, key: 'far' })
+  })
+
   test('with reduced motion, jumps to the place at once', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await open(page, LINKS)
