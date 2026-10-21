@@ -2,7 +2,7 @@
 
 Svifa follows [semantic versioning](https://semver.org).
 
-## Unreleased
+## 1.1.0
 
 ### Added
 

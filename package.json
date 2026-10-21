@@ -1,6 +1,6 @@
 {
   "name": "@arcwrightstudio/svifa",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A smooth scroll library for the page or any scrolling element: the same feel at every refresh rate, drawn between pixels, and out of the way of everything else.",
   "keywords": [
     "angular",
