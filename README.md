@@ -284,7 +284,7 @@ new Svifa({ lerp: 0.08, anchors: { offset: -80 } })
 | Option          | Default              | What it does                                                                                                                                                                                                   |
 | --------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `scroller`      | `window`             | What scrolls: the page, or a scrolling element (one with `overflow: auto` or `scroll` and more content than fits).                                                                                            |
-| `axis`          | `'vertical'`         | `'horizontal'` for a scroller that moves sideways, right-to-left content included. It then takes the wheel's up and down as left and right.                                                                    |
+| `axis`          | `'vertical'`         | `'horizontal'` for a scroller that moves sideways, right-to-left content included; it then takes the wheel's up and down as left and right. `'both'` for one that moves both ways. See [Both ways](#both-ways). |
 | `lerp`          | `0.1`                | How quickly a glide closes in, the same at any refresh rate: at `0.1`, about a tenth of the remaining distance every sixtieth of a second. Lower glides longer and softer; higher follows the wheel more closely, up to `1`. |
 | `duration`      | none                 | Glide for a set time instead, in seconds, along `easing`. Used by the wheel and by `scrollTo`.                                                                                                                  |
 | `easing`        | exponential ease-out | The curve of a timed glide: a function from the share of the time gone (0 to 1) to the share of the distance covered.                                                                                          |
@@ -308,16 +308,18 @@ An option that should be a number and is not a finite one (`NaN` or `Infinity`, 
 svifa.scrollTo('#pricing', { offset: -80 })
 svifa.scrollTo(0)
 const arrived = await svifa.scrollTo(document.querySelector('.faq'), { duration: 0.8 })
+svifa.scrollTo({ x: 1200, y: 400 }) // with axis: 'both'
 ```
 
 `target` is a position in pixels from the start, an element, a CSS selector or `#id`, `'top'` or `'start'`, or `'bottom'` or
 `'end'`. An element lands where the browser puts it for a link to it: its start at the start of the scroller, less its own
 `scroll-margin` and the scroller's `scroll-padding`. An element inside a scrolling box of its own is first brought into view in that
-box, as the browser does for a link.
+box, as the browser does for a link. On a scroller that moves both ways, a number is the vertical position, `{ x, y }` sets each axis
+(an axis left out stays where it is), and an element, a selector or a keyword sets both.
 
 | Option      | Default | What it does                                                    |
 | ----------- | ------- | --------------------------------------------------------------- |
-| `offset`    | `0`     | Added to the position, for example `-80` to stop below a sticky header. |
+| `offset`    | `0`     | Added to the position, for example `-80` to stop below a sticky header. Both ways: a number for the vertical axis, or `{ x, y }`. |
 | `immediate` | `false` | Move at once, without a glide.                                  |
 | `lerp`      | Svifa's | This glide's own `lerp`.                                        |
 | `duration`  | Svifa's | This glide's own `duration`, in seconds.                        |
@@ -379,8 +381,11 @@ again does nothing.
 | `isGliding`  | Whether a glide is under way.                                                                                     |
 | `isStopped`  | Whether Svifa is stopped.                                                                                         |
 | `element`    | The element that scrolls: `<html>` for the page.                                                                  |
-| `axis`       | `'vertical'` or `'horizontal'`.                                                                                   |
+| `axis`       | `'vertical'`, `'horizontal'` or `'both'`.                                                                         |
 | `options`    | The options in use, every default filled in. Read only: change them with `configure`.                           |
+| `x`, `y`     | Each axis on its own: `{ scroll, target, limit, progress, velocity, direction }`. `x` is `null` unless Svifa moves the scroller sideways, and `y` unless it moves it up and down. |
+
+On a scroller that moves both ways, `scroll`, `target`, `limit`, `progress`, `velocity` and `direction` are its vertical axis.
 
 The module also exports `easeOut`, the default easing, and `version`.
 
@@ -402,6 +407,19 @@ attribute:
 | `svifa-subpixel` | Svifa draws between pixels: `subpixel` is set, the browser can, and the reader has not asked for reduced motion. |
 
 An element with the `data-svifa-native` attribute, and everything inside it, keeps the browser's own wheel scrolling.
+
+## Both ways
+
+```js
+const svifa = new Svifa({ scroller: document.querySelector('.board'), axis: 'both' })
+svifa.scrollTo({ x: 2400, y: 900 })
+svifa.on('scroll', ({ x, y }) => minimap.show(x.progress, y.progress))
+```
+
+With `axis: 'both'`, a scroller that moves up and down and sideways (a map, a board, a wide table) glides both ways at once: one
+movement of the wheel or the trackpad moves each axis by its own part, with the same feel. Each axis stops at its own end, and the
+wheel goes on to the page around the scroller only when every way it turned is at its end. A mouse wheel turned with Shift moves it
+sideways, as the browser's own scrolling does. Drawing between pixels works on both axes.
 
 ## Drawing between pixels
 

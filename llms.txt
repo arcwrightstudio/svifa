@@ -74,7 +74,7 @@ again. Works under StrictMode.
 | Option | Default | Meaning |
 | --- | --- | --- |
 | scroller | window | The page, or a scrolling element (overflow auto or scroll). |
-| axis | 'vertical' | 'horizontal' for a sideways scroller (right-to-left content included); it takes the wheel's up and down too. |
+| axis | 'vertical' | 'horizontal' for a sideways scroller (right-to-left content included); it takes the wheel's up and down too. 'both' glides up and down and sideways at once (each axis its own part of the wheel; Shift with a mouse wheel moves it sideways). |
 | lerp | 0.1 | Smoothness, the same at any refresh rate: about this share of the remaining distance every 1/60 s. 0.16 snappy, 0.07 soft, 0.05 slow, 0.03 very slow. At most 1. |
 | duration | none | Glide for a set time in seconds instead, along easing. |
 | easing | ease-out | (t: 0..1) => 0..1, for a timed glide. |
@@ -93,8 +93,9 @@ A number that is not finite is taken as its default.
 ## Methods
 
 - scrollTo(target, options?) => Promise<boolean>. target: a number, an element, a CSS selector or '#id', 'top' | 'start' |
-  'bottom' | 'end'. Options: offset, immediate, lerp, duration, easing, lock (hold the wheel until it arrives), force (glide while
-  stopped). An element lands as for a link to it (scroll-margin and scroll-padding honoured; a nested scrolling box is brought into
+  'bottom' | 'end'; with axis 'both', also { x, y } (a number is then the vertical position; an element, selector or keyword sets
+  both). Options: offset (a number, or { x, y } both ways), immediate, lerp, duration, easing, lock (hold the wheel until it
+  arrives), force (glide while stopped). An element lands as for a link to it (scroll-margin and scroll-padding honoured; a nested scrolling box is brought into
   view first). Resolves true on arrival, false if something else moved the scroller, the wheel or a later scrollTo took over, Svifa
   is stopped, or the target is missing (with a warning). Never rejects.
 - configure(changes): change lerp, duration, easing, wheel, wheelSpeed, nested, native, chain, anchors while running
@@ -108,9 +109,10 @@ A number that is not finite is taken as its default.
 ## Properties
 
 scroll (current position: exact while gliding, the browser's at rest), target, limit (measured now), progress (0..1), velocity
-(px/s), direction (1, -1, 0), isGliding, isStopped, element (<html> for the page), axis, options (read only). Exports: Svifa
-(default and named), easeOut, version; types SvifaOptions, ScrollToOptions, TunableOptions, SvifaTarget, Easing, Axis, SvifaEvent,
-ResolvedOptions.
+(px/s), direction (1, -1, 0), isGliding, isStopped, element (<html> for the page), axis, options (read only); x and y, each axis on
+its own ({ scroll, target, limit, progress, velocity, direction }, null for an axis it does not move); both ways, the single-axis
+properties are the vertical axis. Exports: Svifa (default and named), easeOut, version; types SvifaOptions, ScrollToOptions,
+TunableOptions, SvifaTarget, Point, AxisState, Easing, Axis, SvifaEvent, ResolvedOptions.
 
 ## Events and classes
 

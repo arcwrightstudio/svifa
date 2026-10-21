@@ -1,5 +1,5 @@
 import type { Scroller } from './scroller'
-import type { SvifaTarget } from './types'
+import type { Point, SvifaTarget } from './types'
 
 const SCROLLS = ['auto', 'scroll', 'overlay', 'hidden']
 
@@ -7,7 +7,7 @@ const SCROLLS = ['auto', 'scroll', 'overlay', 'hidden']
  * What a target names: a position in pixels, or an element (or null when it names nothing on the page). `'#'` and `'#top'` (when
  * nothing has that id) are the top, as they are for a link.
  */
-export function resolve(target: SvifaTarget, scroller: Scroller): number | Element | null {
+export function resolve(target: Exclude<SvifaTarget, Point>, scroller: Scroller): number | Element | null {
   if (typeof target === 'number') return Number.isFinite(target) ? target : null
   if (target === 'top' || target === 'start' || target === '#') return 0
   if (target === 'bottom' || target === 'end') return scroller.limit

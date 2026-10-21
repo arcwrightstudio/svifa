@@ -117,6 +117,69 @@ function motion() {
     })
   })
 
+  test('both ways, each axis stays inside its range, heads for its own latest goal and rests on the sum it allows', async ({
+    page,
+  }) => {
+    const both = fc.record({ x: fc.integer({ min: -3000, max: 3000 }), y: fc.integer({ min: -3000, max: 3000 }) })
+    const step = fc.oneof(
+      both.filter(({ x, y }) => x !== 0 || y !== 0).map((wheel) => ({ wheel })),
+      frames.map((frames) => ({ frames }))
+    )
+    const cases = fc.record({ lerp, from, sideways: from, steps: fc.array(step, { minLength: 1, maxLength: 16 }), tail: frames })
+    await check(page, cases, async (c) => {
+      const problems = await page.evaluate(
+        ({ lerp, from, sideways, steps, tail }) => {
+          const w = window as any
+          document.body.style.width = '6000px'
+          const limit = {
+            x: document.documentElement.scrollWidth - innerWidth,
+            y: document.documentElement.scrollHeight - innerHeight,
+          }
+          const goal = { x: Math.round(sideways * limit.x), y: Math.round(from * limit.y) }
+          window.scrollTo({ left: goal.x, top: goal.y, behavior: 'instant' })
+          const g = new w.Svifa({ axis: 'both', autoRaf: false, lerp })
+          let clock = 1000
+          g.raf(clock)
+          const found: string[] = []
+          const frame = (ms: number) => {
+            const before = { x: g.x.scroll, y: g.y.scroll }
+            clock += ms
+            g.raf(clock)
+            for (const axis of ['x', 'y'] as const) {
+              const now = g[axis].scroll
+              if (!(now >= 0 && now <= limit[axis])) found.push(`${axis} at ${now}, outside 0 to ${limit[axis]}`)
+              // every frame moves toward the goal, and never past it
+              const low = Math.min(before[axis], goal[axis]) - 1e-9
+              const high = Math.max(before[axis], goal[axis]) + 1e-9
+              if (now < low || now > high) found.push(`${axis} moved from ${before[axis]} to ${now}, heading for ${goal[axis]}`)
+            }
+          }
+          for (const step of steps) {
+            if ('wheel' in step) {
+              goal.x = Math.min(Math.max(goal.x + step.wheel.x, 0), limit.x)
+              goal.y = Math.min(Math.max(goal.y + step.wheel.y, 0), limit.y)
+              w.wheel(window, step.wheel.y, { deltaX: step.wheel.x })
+              const heading = { x: g.x.target, y: g.y.target }
+              if (heading.x !== goal.x || heading.y !== goal.y)
+                found.push(`heading for ${JSON.stringify(heading)}, not ${JSON.stringify(goal)}`)
+            } else {
+              for (const ms of step.frames) frame(ms)
+            }
+          }
+          for (let i = 0; g.isGliding && i < 100000; i++) frame(tail[i % tail.length])
+          if (g.isGliding) found.push('still gliding')
+          const rest = { x: window.scrollX, y: window.scrollY }
+          if (rest.x !== goal.x || rest.y !== goal.y) found.push(`rests at ${JSON.stringify(rest)}, not ${JSON.stringify(goal)}`)
+          g.destroy()
+          document.body.style.width = ''
+          return found
+        },
+        { lerp: c.lerp, from: c.from, sideways: c.sideways, steps: c.steps, tail: c.tail }
+      )
+      expect(problems).toEqual([])
+    })
+  })
+
   test('a timed glide follows its curve over its time, arrives on the frame its time runs out, and resolves true', async ({
     page,
   }) => {
