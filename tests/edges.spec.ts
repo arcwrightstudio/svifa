@@ -213,6 +213,45 @@ test.describe('holding still', () => {
       true,
     ])
   })
+
+  test('where the setting has only addListener (Safari before 14), it is followed all the same, until destroy', async ({
+    page,
+  }) => {
+    await open(page)
+    await page.evaluate(() => {
+      const w = window as any
+      // as Safari 12 and 13 have it: no event methods on a media query list, and addListener and removeListener in their place
+      const list = MediaQueryList.prototype as any
+      for (const method of ['addEventListener', 'removeEventListener']) {
+        Object.defineProperty(list, method, { value: undefined, configurable: true })
+      }
+      w.listening = 0
+      const add = list.addListener
+      const remove = list.removeListener
+      list.addListener = function (listener: () => void) {
+        w.listening++
+        return add.call(this, listener)
+      }
+      list.removeListener = function (listener: () => void) {
+        w.listening--
+        return remove.call(this, listener)
+      }
+      w.g = new w.Svifa()
+      w.result = null
+      w.g.scrollTo(6000, { duration: 5 }).then((arrived: boolean) => (w.result = arrived))
+    })
+    expect(await page.evaluate(() => (window as any).listening)).toBe(1)
+    await page.waitForTimeout(300)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.waitForFunction(() => (window as any).result !== null, null, { timeout: 3000 })
+    const after = await page.evaluate(() => {
+      const w = window as any
+      const arrived = [window.scrollY, w.g.isGliding, w.result]
+      w.g.destroy()
+      return { arrived, listening: w.listening }
+    })
+    expect(after).toEqual({ arrived: [6000, false, true], listening: 0 })
+  })
 })
 
 test.describe('small things that should be exactly right', () => {

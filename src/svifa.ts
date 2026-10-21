@@ -14,6 +14,9 @@ type Motion =
 
 type How = { lerp?: number; duration?: number; easing?: Easing; lock?: boolean }
 
+// A media query list as Safari before 14 has it: addListener and removeListener in place of the event methods.
+type OlderMediaQueryList = { addListener(listener: () => void): void; removeListener(listener: () => void): void }
+
 /** The options as Svifa uses them, every default filled in. */
 type Settings = Required<Omit<SvifaOptions, 'scroller' | 'duration' | 'native' | 'subpixel'>> &
   Pick<SvifaOptions, 'duration' | 'native' | 'subpixel'>
@@ -156,7 +159,7 @@ export class Svifa {
     // the reduced-motion setting can change while the page is open (older Safari only has addListener)
     if (this.reduced) {
       if (typeof this.reduced.addEventListener === 'function') this.reduced.addEventListener('change', this.onMotionSetting)
-      else this.reduced.addListener(this.onMotionSetting)
+      else (this.reduced as unknown as OlderMediaQueryList).addListener(this.onMotionSetting)
     }
     // a framework that writes the class attribute itself (a theme on <html>) would wipe Svifa's classes, and with them svifa-stopped
     if (typeof MutationObserver === 'function') {
@@ -402,7 +405,7 @@ export class Svifa {
     window.removeEventListener('resize', this.onResize)
     if (this.reduced) {
       if (typeof this.reduced.removeEventListener === 'function') this.reduced.removeEventListener('change', this.onMotionSetting)
-      else this.reduced.removeListener(this.onMotionSetting)
+      else (this.reduced as unknown as OlderMediaQueryList).removeListener(this.onMotionSetting)
     }
     this.keeper?.disconnect()
     this.listeners.clear()
