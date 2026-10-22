@@ -4,7 +4,8 @@
 // The plain-page example and the README load Svifa from jsDelivr, pinned to a version and to the files' integrity hashes. This
 // checks that they pin the version in package.json, and that each hash is the hash of the file that version serves: the published
 // file once the version is on npm (between releases, while the source changes), this build's file while it is not (a release
-// being prepared, so the tags work the moment it is published). Run after the build. usage: node scripts/check-example.mjs [--write]
+// being prepared, so the tags work the moment it is published). Every other address of the package on the CDN, as llms.txt gives
+// one, pins that version too. Run after the build. usage: node scripts/check-example.mjs [--write]
 // --write puts this version and those hashes into them.
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -75,12 +76,25 @@ for (const place of ['examples/html/index.html', 'README.md']) {
 }
 if (found === 0) problems.push('the example and the README load nothing from the CDN')
 
+// every address of the package on the CDN, inside a tag or not, pins this version
+const address = /https:\/\/cdn\.jsdelivr\.net\/npm\/(@?[^@"\s]+)@([^/"\s]+)\//g
+for (const place of ['README.md', 'llms.txt', 'examples/html/index.html']) {
+  const path = `${root}${place}`
+  const text = readFileSync(path, 'utf8').replace(address, (whole, pkg, pinned) => {
+    if (pkg !== name || pinned === version) return whole
+    if (write) return whole.replace(`@${pinned}/`, `@${version}/`)
+    problems.push(`${place}: an address pins ${pinned}, but package.json is at ${version}`)
+    return whole
+  })
+  if (write) writeFileSync(path, text)
+}
+
 const source = files ? `the files of ${version} as published` : `this build's files (${version} is not published yet)`
 if (write) {
-  console.log(`the example and the README now pin ${name}@${version} and the hashes of ${source}`)
+  console.log(`the example, the README and llms.txt now pin ${name}@${version}, with the hashes of ${source}`)
 } else if (problems.length) {
   console.error(problems.join('\n'))
   process.exit(1)
 } else {
-  console.log(`the example and the README pin ${name}@${version}, and their ${found} hashes are those of ${source}`)
+  console.log(`the example, the README and llms.txt pin ${name}@${version}, and the ${found} hashes are those of ${source}`)
 }

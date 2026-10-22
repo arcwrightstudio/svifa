@@ -8,6 +8,10 @@ import { defineConfig, devices } from '@playwright/test'
 // (@not-webkit). The package's own tests use no browser, so they run once.
 const CHROMIUM_ONLY = ['**/scrollbars.spec.ts', '**/package.spec.ts', '**/server.spec.ts']
 
+// Playwright starts every worker with FORCE_COLOR set, and Node warns in each one that also inherits a NO_COLOR. The runner has
+// already read NO_COLOR for its own output by the time it reads this file, so the workers are started without it.
+delete process.env.NO_COLOR
+
 export default defineConfig({
   testDir: 'tests',
   fullyParallel: true,
