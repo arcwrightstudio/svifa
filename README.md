@@ -4,7 +4,7 @@
 
 <p align="center"><strong>Smooth scroll for the web.</strong><br>Drawn between pixels, the same at every refresh rate, and out of the way of everything else.</p>
 
-<p align="center"><a href="https://www.bestpractices.dev/projects/15754"><img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/15754/badge"></a></p>
+<p align="center"><a href="https://www.bestpractices.dev/projects/15754"><img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/15754/badge"></a> <a href="https://www.bestpractices.dev/projects/15754"><img alt="OpenSSF Baseline" src="https://www.bestpractices.dev/projects/15754/baseline"></a></p>
 
 Svifa is a smooth scroll library for the browser. It makes the mouse wheel and the trackpad scroll smoothly, on the whole page or
 inside any scrolling element, and leaves everything else to the browser.
