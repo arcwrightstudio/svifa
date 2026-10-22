@@ -19,6 +19,15 @@ const shared: UserConfig = {
 // Declarations are written from the source alone (it states every exported type: isolatedDeclarations in tsconfig.json).
 const dts = { generator: 'oxc' } as const
 
+// The entry for each framework, and the modules of that framework it imports.
+const FRAMEWORKS: Record<string, RegExp> = {
+  react: /^react(\/|$)/,
+  vue: /^vue(\/|$)/,
+  svelte: /^svelte(\/|$)/,
+  solid: /^solid-js(\/|$)/,
+  angular: /^@angular\//,
+}
+
 export default defineConfig([
   // for bundlers and Node: an ES module and a CommonJS module, each with its types (the CommonJS module carries the class both as
   // Svifa and as default, as the ES module does)
@@ -30,17 +39,18 @@ export default defineConfig([
     dts,
     outputOptions: (options, format) => (format === 'cjs' ? { ...options, exports: 'named' } : options),
   },
-  // the React entry: the core stays one import of '@arcwrightstudio/svifa', so a project holds one Svifa class whichever entry it
-  // uses; and it is a client component for frameworks with server components (Next.js)
-  {
+  // each framework's entry: the core stays one import of '@arcwrightstudio/svifa', so a project holds one Svifa class whichever entry
+  // it uses, and the framework is the project's own; the React entry is a client component for frameworks with server components
+  // (Next.js)
+  ...Object.entries(FRAMEWORKS).map(([name, framework]): UserConfig => ({
     ...shared,
-    entry: { react: 'src/react.ts' },
+    entry: { [name]: `src/${name}.ts` },
     format: ['esm', 'cjs'],
     platform: 'neutral',
     dts,
-    deps: { neverBundle: ['react', '@arcwrightstudio/svifa'] },
-    banner: { js: "'use client'" },
-  },
+    deps: { neverBundle: [framework, '@arcwrightstudio/svifa'] },
+    banner: name === 'react' ? { js: "'use client'" } : undefined,
+  })),
   // for a plain <script> tag: window.Svifa, readable and minified (keepNames: the class is still called Svifa in devtools)
   ...[false, true].map((minify): UserConfig => ({
     ...shared,

@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Arcwright Studio
 
 import type { Scroller } from './scroller'
+import type { Spot } from './snap'
 import type { AxisState, Easing } from './types'
 
 /** A glide either closes a share of the gap every moment (lerp) or covers it over a set time along a curve. */
@@ -25,6 +26,14 @@ export class Track {
   moved = false // whether that glide has moved the scroller yet
   lastNative = 0 // when the last scroll Svifa did not make was seen
   still: ReturnType<typeof setTimeout> | undefined
+  // snapping: where the wheel would have taken the scroller without it, where the movement of the wheel under way began, when the
+  // wheel last turned this way, and the places it may rest at, read when a movement of the wheel begins
+  free = 0
+  start = 0
+  turned: number = Number.NEGATIVE_INFINITY
+  spots: Spot[] = []
+  // where the browser rests the scroller for each place it was asked about during this movement
+  rests: Map<number, number> = new Map()
 
   constructor(
     readonly area: Scroller,

@@ -3,7 +3,7 @@
 
 // Before a release: packs Svifa as it would be published, installs it with each package manager (npm, pnpm, Yarn 1, Yarn 4 in
 // Plug'n'Play mode, Bun, Deno) into a fresh project in a temporary folder, and proves it works there: an ES module import, a CommonJS
-// require, a type check and a bundle with the stylesheet. Any warning printed while the package runs, is bundled or is type checked
+// require, a type check and a bundle with the stylesheet; with npm, every framework entry beside its framework too. Any warning printed while the package runs, is bundled or is type checked
 // fails the check. Bun, Deno and Yarn 4 are fetched through npx and corepack when missing.
 // usage: npm run check:installs
 import { execSync } from 'node:child_process'
@@ -46,6 +46,25 @@ export const read = (): Svifa | null => useSvifa()`
 const REACT_CJS = `const { SmoothScroll, useSvifa } = require('@arcwrightstudio/svifa/react')
 console.log(JSON.stringify({ react: typeof SmoothScroll === 'function' && typeof useSvifa === 'function' }))`
 const REACT_VERSION = '19.3.0'
+// the other framework entries, each beside its framework (installed with npm only: each is an entry like the React one)
+const FRAMEWORKS = ['vue@3.5.44', 'svelte@5.57.2', 'solid-js@1.9.17', '@angular/core@22.2.3', 'rxjs@7.8.2']
+const FRAMEWORK_ENTRIES = `import * as vue from '@arcwrightstudio/svifa/vue'
+import * as svelte from '@arcwrightstudio/svifa/svelte'
+import * as solid from '@arcwrightstudio/svifa/solid'
+import * as angular from '@arcwrightstudio/svifa/angular'
+const functions = [vue.useSvifa, svelte.smoothScroll, svelte.useSvifa, solid.SmoothScroll, solid.useSvifa,
+  angular.provideSmoothScroll, angular.injectSvifa, angular.createSvifa]
+// Vue's component is an object of options around its setup function
+const vueComponent = typeof vue.SmoothScroll.setup === 'function'
+console.log(JSON.stringify({ frameworks: vueComponent && functions.every((part) => typeof part === 'function') }))`
+const FRAMEWORK_TS = `import { SmoothScroll as VueScroll, type SmoothScrollProps as VueProps } from '@arcwrightstudio/svifa/vue'
+import { smoothScroll, type SmoothScrollOptions } from '@arcwrightstudio/svifa/svelte'
+import { SmoothScroll as SolidScroll, type SmoothScrollProps as SolidProps } from '@arcwrightstudio/svifa/solid'
+import { createSvifa, injectSvifa, provideSmoothScroll } from '@arcwrightstudio/svifa/angular'
+const vue: VueProps = { lerp: 0.08, snap: true }
+const svelte: SmoothScrollOptions = { scroller: () => null, anchors: { offset: -80 } }
+const solid: SolidProps = { scroller: () => undefined, axis: 'both' }
+export const parts = [VueScroll, vue, smoothScroll, svelte, SolidScroll, solid, createSvifa, injectSvifa, provideSmoothScroll] as const`
 const ENTRY = `import Svifa from '@arcwrightstudio/svifa'
 import '@arcwrightstudio/svifa/svifa.css'
 window.svifa = new Svifa()`
@@ -85,10 +104,12 @@ function project(name) {
   writeFileSync(join(dir, 'react.mjs'), REACT)
   writeFileSync(join(dir, 'react.cjs'), REACT_CJS)
   writeFileSync(join(dir, 'react.ts'), REACT_TS)
+  writeFileSync(join(dir, 'frameworks.mjs'), FRAMEWORK_ENTRIES)
+  writeFileSync(join(dir, 'frameworks.ts'), FRAMEWORK_TS)
   return dir
 }
 
-function typecheck(dir, resolution) {
+function typecheck(dir, resolution, extra = []) {
   const config = {
     compilerOptions: {
       strict: true,
@@ -103,7 +124,7 @@ function typecheck(dir, resolution) {
         node10: { module: 'CommonJS', moduleResolution: 'Node10' },
       }[resolution],
     },
-    files: ['use.ts', 'react.ts'],
+    files: ['use.ts', 'react.ts', ...extra],
   }
   writeFileSync(join(dir, `tsconfig.${resolution}.json`), JSON.stringify(config))
   use(`${resolution === 'node10' ? TSC_5 : TSC} -p tsconfig.${resolution}.json`, dir)
@@ -136,7 +157,7 @@ const attempt = (name, steps) => {
 
 // npm, pnpm and Yarn 1: a node_modules folder
 for (const [name, install] of [
-  ['npm', `npm install "${TGZ}" react@${REACT_VERSION} @types/react@${REACT_VERSION} --no-audit --no-fund`],
+  ['npm', `npm install "${TGZ}" react@${REACT_VERSION} @types/react@${REACT_VERSION} ${FRAMEWORKS.join(' ')} --no-audit --no-fund`],
   ['pnpm', `pnpm add "${TGZ}" react@${REACT_VERSION} @types/react@${REACT_VERSION}`],
   ['yarn1', `yarn add "file:${TGZ}" react@${REACT_VERSION} @types/react@${REACT_VERSION} --no-lockfile`],
 ]) {
@@ -150,6 +171,13 @@ for (const [name, install] of [
     ['types (node10)', () => typecheck(dir, 'node10')],
     ['react entry', () => lastJson(use('node react.mjs', dir)).react],
     ['bundle with css', () => bundle(dir)],
+    ...(name === 'npm'
+      ? [
+          ['framework entries', () => lastJson(use('node frameworks.mjs', dir)).frameworks],
+          ['framework types (bundler)', () => typecheck(dir, 'bundler', ['frameworks.ts'])],
+          ['framework types (nodenext)', () => typecheck(dir, 'nodenext', ['frameworks.ts'])],
+        ]
+      : []),
   ])
 }
 

@@ -19,7 +19,7 @@ if (process.argv.includes('--clean')) {
 }
 
 // the least the tests may cover, in percent; raised as coverage grows, never lowered
-const FLOOR = { statements: 96, branches: 89, functions: 94, lines: 96 }
+const FLOOR = { statements: 97, branches: 92, functions: 94, lines: 97 }
 
 if (!existsSync(raw)) {
   console.error('Nothing was recorded: run `npm run coverage`, which runs the tests in Chromium first.')

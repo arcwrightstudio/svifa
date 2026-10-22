@@ -1,0 +1,6 @@
+{
+  "main": "../dist/solid.cjs",
+  "module": "../dist/solid.js",
+  "types": "../dist/solid.d.ts",
+  "sideEffects": false
+}

@@ -2,6 +2,29 @@
 
 Svifa follows [semantic versioning](https://semver.org).
 
+## Unreleased
+
+### Added
+
+- `snap`: a scroller with `scroll-snap-type` glides to the snap points its CSS sets. The wheel moves as far as it would without
+  snapping and the glide rests on the nearest snap point; with `mandatory`, one notch or one trackpad swipe moves one point.
+  `scrollTo` and same-page links rest on the snap point nearest their target. `scroll-padding`, `scroll-margin`,
+  `scroll-snap-stop: always` and areas longer than the visible area are honoured, and every rest is where the browser itself would
+  let the scroller rest, so its own snapping never moves it afterwards. `configure` changes it while Svifa runs.
+- Components for every major framework, beside the React one: Vue and Nuxt (`@arcwrightstudio/svifa/vue`: `SmoothScroll`,
+  `useSvifa`), Svelte and SvelteKit (`@arcwrightstudio/svifa/svelte`: `smoothScroll`, `useSvifa`), Solid
+  (`@arcwrightstudio/svifa/solid`: `SmoothScroll`, `useSvifa`), Angular (`@arcwrightstudio/svifa/angular`: `provideSmoothScroll`,
+  `injectSvifa`, `createSvifa`) and Astro (`@arcwrightstudio/svifa/astro`: `SmoothScroll`, view transitions included). Each renders
+  on a server and is tested on the oldest version of its framework it supports: Vue 3.3, Svelte 4, Solid 1.6 and Angular 19.
+- Examples for Vue, Nuxt, SvelteKit, Solid, Angular and Astro. Every example is built with its framework's own tool from the package
+  as it would be published, and driven in a browser, on each change.
+
+### Fixed
+
+- React: a prop taken off `SmoothScroll` (left out of its props) now goes back to its default; it kept the value it had.
+- The README gave the size as under 8 kB minified and gzipped, which 1.1.0 already passed (8.6 kB). It now gives the size as
+  measured, and a test keeps it true.
+
 ## 1.1.0
 
 ### Added

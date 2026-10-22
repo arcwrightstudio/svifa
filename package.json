@@ -9,15 +9,19 @@
     "javascript",
     "lerp",
     "nextjs",
+    "nuxt",
     "react",
     "scroll",
+    "scroll snap",
     "scrolling",
     "smooth scroll",
     "smooth scrolling",
     "smooth-scroll",
     "smoothscroll",
+    "solid",
     "subpixel",
     "svelte",
+    "sveltekit",
     "trackpad",
     "typescript",
     "vue",
@@ -63,12 +67,58 @@
         "default": "./dist/react.cjs"
       }
     },
+    "./vue": {
+      "import": {
+        "types": "./dist/vue.d.ts",
+        "default": "./dist/vue.js"
+      },
+      "require": {
+        "types": "./dist/vue.d.cts",
+        "default": "./dist/vue.cjs"
+      }
+    },
+    "./svelte": {
+      "import": {
+        "types": "./dist/svelte.d.ts",
+        "default": "./dist/svelte.js"
+      },
+      "require": {
+        "types": "./dist/svelte.d.cts",
+        "default": "./dist/svelte.cjs"
+      }
+    },
+    "./solid": {
+      "import": {
+        "types": "./dist/solid.d.ts",
+        "default": "./dist/solid.js"
+      },
+      "require": {
+        "types": "./dist/solid.d.cts",
+        "default": "./dist/solid.cjs"
+      }
+    },
+    "./angular": {
+      "import": {
+        "types": "./dist/angular.d.ts",
+        "default": "./dist/angular.js"
+      },
+      "require": {
+        "types": "./dist/angular.d.cts",
+        "default": "./dist/angular.cjs"
+      }
+    },
+    "./astro": "./astro/SmoothScroll.astro",
     "./svifa.css": "./svifa.css",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "react",
+    "vue",
+    "svelte",
+    "solid",
+    "angular",
+    "astro",
     "svifa.css",
     "llms.txt"
   ],
@@ -76,10 +126,26 @@
     "node": ">=14"
   },
   "peerDependencies": {
-    "react": ">=18"
+    "@angular/core": ">=19",
+    "react": ">=18",
+    "solid-js": ">=1.6",
+    "svelte": ">=4",
+    "vue": ">=3.3"
   },
   "peerDependenciesMeta": {
+    "@angular/core": {
+      "optional": true
+    },
     "react": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     }
   },
@@ -87,18 +153,25 @@
     "build": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsdown && npm run sbom",
     "sbom": "node scripts/sbom.mjs",
     "typecheck": "tsc && tsc -p tests",
-    "lint": "oxlint --deny-warnings src tests scripts examples && prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.ts\" \"examples/**/*.{ts,tsx,mjs,css}\"",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.ts\" \"examples/**/*.{ts,tsx,mjs,css}\"",
+    "lint": "oxlint --deny-warnings src tests scripts examples && prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.ts\" \"examples/**/*.{ts,tsx,js,mjs,css,vue}\"",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.ts\" \"examples/**/*.{ts,tsx,js,mjs,css,vue}\"",
     "test": "playwright test",
     "coverage": "node scripts/coverage.mjs --clean && playwright test --project chromium && node scripts/coverage.mjs",
-    "check:package": "publint && attw --pack . --exclude-entrypoints svifa.css && node scripts/check-example.mjs",
+    "check:package": "publint && attw --pack . --exclude-entrypoints svifa.css astro && node scripts/check-example.mjs",
     "prepublishOnly": "npm run lint && npm run typecheck && npm run build && npm test && npm run check:package --dry-run=false",
-    "check:installs": "node scripts/check-installs.mjs"
+    "check:installs": "node scripts/check-installs.mjs",
+    "check:examples": "node scripts/check-examples.mjs",
+    "check:oldest": "node scripts/check-oldest.mjs"
   },
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
+    "@angular/common": "22.2.3",
+    "@angular/compiler": "22.2.3",
+    "@angular/core": "22.2.3",
+    "@angular/platform-browser": "22.2.3",
+    "@angular/platform-server": "22.2.3",
     "@arethetypeswrong/cli": "0.18.5",
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",
@@ -112,9 +185,14 @@
     "publint": "0.3.25",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "rxjs": "7.8.2",
+    "solid-js": "1.9.17",
+    "svelte": "5.57.2",
     "tsdown": "0.23.1",
     "typescript": "7.0.2",
-    "v8-to-istanbul": "9.3.0"
+    "v8-to-istanbul": "9.3.0",
+    "vue": "3.5.44",
+    "zone.js": "0.16.3"
   },
   "allowScripts": {
     "esbuild@0.28.2": true

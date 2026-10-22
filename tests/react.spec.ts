@@ -2,18 +2,12 @@
 // Copyright (c) 2026 Arcwright Studio
 
 // The React entry, in a real React 19 app under StrictMode (which makes, takes off and makes again every effect in development).
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import type { Page } from '@playwright/test'
+import { mountApp, otherVersion } from './app'
 import { expect, test } from './fixtures'
-import { build } from 'esbuild'
-import { ORIGIN, open } from './setup'
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url))
-const APP_URL = `${ORIGIN}/react-app.js`
 // SVIFA_REACT_DIR=<a node_modules folder> runs these with another React (React 18, say) in place of the one installed here
-const OTHER = process.env.SVIFA_REACT_DIR
-const alias = OTHER ? { react: join(OTHER, 'react'), 'react-dom': join(OTHER, 'react-dom') } : undefined
+const plugins = otherVersion('react', ['react', 'react-dom'])
 
 const APP = `
 import { StrictMode, createElement as h, useEffect, useRef, useState, version } from 'react'
@@ -35,12 +29,15 @@ function Probe() {
 
 function Page() {
   const [lerp, setLerp] = useState(0.1)
+  const [duration, setDuration] = useState<number | undefined>(undefined)
   const [axis, setAxis] = useState('vertical')
   const [on, setOn] = useState(true)
   w.setLerp = setLerp
+  w.setDuration = setDuration
   w.setAxis = setAxis
   w.setOn = setOn
-  return on ? h(SmoothScroll, { lerp, axis, autoRaf: false }, h(Probe)) : null
+  // duration is passed only while it has a value, so taking it off leaves it out of the props altogether
+  return on ? h(SmoothScroll, { lerp, axis, autoRaf: false, ...(duration === undefined ? {} : { duration }) }, h(Probe)) : null
 }
 
 function Box() {
@@ -50,36 +47,24 @@ function Box() {
     h(SmoothScroll, { scroller: box, autoRaf: false }, h(Probe)))
 }
 
-createRoot(document.getElementById('root')!).render(h(StrictMode, null, h(w.which === 'box' ? Box : Page)))
+// subpixel as a function, a new one on every render, as an inline arrow is
+function Drawn() {
+  const [tick, setTick] = useState(0)
+  w.rerender = () => setTick(tick + 1)
+  return h(SmoothScroll, { subpixel: () => document.querySelectorAll('.tall'), autoRaf: false }, h(Probe))
+}
+
+const roots = { page: Page, box: Box, drawn: Drawn }
+createRoot(document.getElementById('root')!).render(h(StrictMode, null, h(roots[w.which as 'page' | 'box' | 'drawn'])))
 `
 
-async function mount(page: Page, which: 'page' | 'box') {
-  const bundled = await build({
-    stdin: { contents: APP, resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'tsx' },
-    absWorkingDir: ROOT,
-    bundle: true,
-    format: 'iife',
-    write: false,
-    define: { 'process.env.NODE_ENV': '"development"', __VERSION__: '"test"' },
-    alias,
-    logLevel: 'silent',
-    // a coverage run maps what ran back to src/ through it
-    sourcemap: 'inline',
-  })
-  const errors: string[] = []
-  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()))
-  page.on('pageerror', (error) => errors.push(String(error)))
-  await open(page, '<div id="root"></div><div class="tall"></div>')
-  await page.evaluate((which) => ((window as any).which = which), which)
-  // served from an address of its own, as the script build is (the route registered last is asked first)
-  await page.route(APP_URL, (route) => route.fulfill({ contentType: 'text/javascript', body: bundled.outputFiles[0].text }))
-  await page.addScriptTag({ url: APP_URL })
-  await page.waitForFunction(() => (window as any).probe != null, null, { timeout: 5000 })
+async function mount(page: Page, which: 'page' | 'box' | 'drawn') {
+  const errors = await mountApp(page, 'react', APP, { globals: { which }, esbuild: { plugins } })
   test.info().annotations.push({ type: 'react', description: await page.evaluate(() => (window as any).reactVersion) })
   return errors
 }
 
-test('SmoothScroll makes one Svifa (StrictMode included), retunes it when a prop changes, and takes it off when it leaves', async ({
+test('SmoothScroll makes one Svifa (StrictMode included), retunes it when a prop changes or is taken off, and takes it off when it leaves', async ({
   page,
 }) => {
   const errors = await mount(page, 'page')
@@ -101,6 +86,11 @@ test('SmoothScroll makes one Svifa (StrictMode included), retunes it when a prop
 
   await page.evaluate(() => (window as any).setLerp(0.3))
   await page.waitForFunction(() => (window as any).probe.options.lerp === 0.3)
+  // a prop taken off goes back to its default
+  await page.evaluate(() => (window as any).setDuration(1.5))
+  await page.waitForFunction(() => (window as any).probe.options.duration === 1.5)
+  await page.evaluate(() => (window as any).setDuration(undefined))
+  await page.waitForFunction(() => (window as any).probe.options.duration === undefined)
   expect(await page.evaluate(() => (window as any).probe === (window as any).made)).toBe(true)
 
   // what it scrolls makes it again
@@ -124,5 +114,27 @@ test('SmoothScroll takes a ref to a scrolling element as its scroller', async ({
     return { element: w.probe.element.id, prevented, top: box.scrollTop, page: document.documentElement.className }
   })
   expect(result).toEqual({ element: 'box', prevented: true, top: 150, page: '' })
+  expect(errors).toEqual([])
+})
+
+test('SmoothScroll draws the elements a subpixel function names, and a new function on each render is no change', async ({
+  page,
+}) => {
+  const errors = await mount(page, 'drawn')
+  const result = await page.evaluate(async () => {
+    const w = window as any
+    const made = w.probe
+    w.rerender()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    made.raf(1000)
+    w.wheel(window, 101)
+    made.raf(1016)
+    made.raf(1032)
+    const drawn = (document.querySelector('.tall') as HTMLElement).style.translate
+    return { same: w.probe === made, subpixel: document.documentElement.classList.contains('svifa-subpixel'), drawn }
+  })
+  expect(result.same).toBe(true)
+  expect(result.subpixel).toBe(true)
+  expect(result.drawn).not.toBe('')
   expect(errors).toEqual([])
 })
