@@ -1,0 +1,64 @@
+---
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
+// Smooth scrolling for an Astro site: put it once in a layout. Its props are the options of Svifa that can be written in markup (no
+// functions), with `scroller` and `subpixel` as CSS selectors. The Svifa is made when the page loads, and with Astro's view
+// transitions again for each page; a script reaches it as `document.querySelector('svifa-scroll').svifa`.
+import type { SvifaOptions } from '@arcwrightstudio/svifa'
+
+export type Props = Omit<SvifaOptions, 'scroller' | 'subpixel' | 'easing' | 'native'> & {
+  /** What scrolls: leave it out for the page, or a CSS selector for a scrolling element. */
+  scroller?: string
+  /** The elements drawn between pixels while the content glides, as a CSS selector. */
+  subpixel?: string
+}
+---
+
+<svifa-scroll data-options={JSON.stringify(Astro.props)} hidden></svifa-scroll>
+
+<script>
+  import Svifa from '@arcwrightstudio/svifa'
+  import '@arcwrightstudio/svifa/svifa.css'
+
+  // The element that holds the Svifa: it makes one when it enters the page and takes it off when it leaves, as it does when a view
+  // transition replaces the page around it.
+  class SvifaScroll extends HTMLElement {
+    svifa: Svifa | null = null
+
+    connectedCallback() {
+      const { scroller, ...options } = JSON.parse(this.dataset.options || '{}')
+      const element = scroller ? document.querySelector(scroller) : undefined
+      if (element === null) {
+        console.warn('Svifa: nothing on the page matches the scroller', scroller)
+        return
+      }
+      this.svifa = new Svifa({ ...options, scroller: element })
+    }
+
+    disconnectedCallback() {
+      this.svifa?.destroy()
+      this.svifa = null
+    }
+  }
+
+  if (!customElements.get('svifa-scroll')) {
+    customElements.define('svifa-scroll', SvifaScroll)
+
+    // Astro's view transitions take every link on the page, a same-page link included, and jump to its place before Svifa sees it.
+    // A link marked data-astro-reload is left alone, which for a link to a place on the same page reloads nothing, so while the
+    // page's Svifa glides to same-page links (anchors) such a link is marked for as long as its click is under way. The listener sits
+    // on <html>: after the page's own handlers on the link, which may still cancel it, and before the router's on the document.
+    document.documentElement.addEventListener('click', (event) => {
+      const options = document.querySelector<SvifaScroll>('svifa-scroll')?.svifa?.options
+      if (!options?.anchors || event.defaultPrevented || event.button !== 0) return
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      const link = event.composedPath().find((node): node is HTMLAnchorElement => node instanceof HTMLAnchorElement)
+      if (!link || link.hasAttribute('data-astro-reload') || !link.getAttribute('href')?.includes('#')) return
+      const url = new URL(link.href, location.href)
+      if (url.origin !== location.origin || url.pathname !== location.pathname || url.search !== location.search) return
+      link.setAttribute('data-astro-reload', '')
+      setTimeout(() => link.removeAttribute('data-astro-reload'))
+    })
+  }
+</script>

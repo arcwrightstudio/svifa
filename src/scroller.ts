@@ -29,6 +29,9 @@ export class Scroller {
   private restoreBehavior: string | null = null
   // the scroller's own inline scrollbar-gutter while Svifa holds a scrollbar's room (see holdGutter)
   private gutter: string | null = null
+  // while Svifa holds snapping off for a glide: the scroller's own inline scroll-snap-type, and the snapping it held off
+  private ownSnap: string | null = null
+  private heldSnap = ''
   /** The last move was held short of the place written: the scroller cannot go that far (its end is nearer than measured). */
   short = false
 
@@ -120,6 +123,23 @@ export class Scroller {
     return false
   }
 
+  /** Puts the scroller at `place` at once, as written: no grid, no learning (see moveTo for a glide's moves). */
+  put(place: number): void {
+    this.write(place)
+  }
+
+  /** Runs `read` with the page's own snapping in place, also while Svifa holds it off for a glide, and returns what it returns. */
+  withSnap<T>(read: () => T): T {
+    if (this.ownSnap === null) return read()
+    const style = this.root.style
+    style.scrollSnapType = this.ownSnap
+    try {
+      return read()
+    } finally {
+      style.scrollSnapType = 'none'
+    }
+  }
+
   private write(place: number) {
     const target = this.isPage ? window : this.root
     const to = this.reversed ? -place : place
@@ -156,8 +176,29 @@ export class Scroller {
 
   /** Whether the scroller snaps (`scroll-snap-type`): the browser would put every one of Svifa's moves back on a snap point. */
   get snaps(): boolean {
-    const type = getComputedStyle(this.root).scrollSnapType
+    const type = this.snapType
     return Boolean(type) && type !== 'none'
+  }
+
+  /** The scroller's `scroll-snap-type`: the one in its styles, also while Svifa holds it off for a glide. */
+  get snapType(): string {
+    return this.ownSnap === null ? getComputedStyle(this.root).scrollSnapType : this.heldSnap
+  }
+
+  /**
+   * Holds the browser's snapping off while Svifa glides (each frame's position would be put on a snap point) and puts it back when it
+   * rests, on the snap point the glide was aimed at; false puts it back.
+   */
+  holdSnap(hold: boolean): void {
+    const style = this.root.style
+    if (hold && this.ownSnap === null) {
+      this.heldSnap = getComputedStyle(this.root).scrollSnapType
+      this.ownSnap = style.scrollSnapType
+      style.scrollSnapType = 'none'
+    } else if (!hold && this.ownSnap !== null) {
+      style.scrollSnapType = this.ownSnap
+      this.ownSnap = null
+    }
   }
 
   /** Where the scroller's visible area begins on the screen, along its axis (its right edge in right-to-left content). */
@@ -195,6 +236,7 @@ export class Scroller {
   destroy(): void {
     if (this.restoreBehavior !== null) this.root.style.scrollBehavior = this.restoreBehavior
     this.holdGutter(false)
+    this.holdSnap(false)
   }
 }
 

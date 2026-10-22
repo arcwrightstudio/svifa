@@ -57,12 +57,22 @@ npm audit signatures
 
 It checks the registry signature and the provenance of every installed package, Svifa included. The provenance is signed with a
 short-lived certificate that Sigstore issues to the workflow itself through GitHub's OpenID Connect, and is recorded in Sigstore's
-public transparency log; no long-lived private key exists, on npm or anywhere else. For a copy loaded from a CDN, the README's
+public transparency log; no long-lived private key signs the package, on npm or anywhere else. For a copy loaded from a CDN, the README's
 `integrity` hashes are the published files' own, and the browser refuses any file that differs.
 
 The provenance also says who built the release. On the version's page on npmjs.com, under Provenance, check that the source commit
 is in `github.com/arcwrightstudio/svifa`, that it is the commit the release's tag (`v1.0.0` for 1.0.0) points to, and that the
 build file is `.github/workflows/release.yml`. A version built anywhere else, or by any other workflow, is not one of Svifa's.
+
+From 1.2.0, each release tag is signed with Svifa's release key, and GitHub marks it Verified. To check a tag yourself, with the
+key's fingerprint `SHA256:q+LwnztDgZLEWmfaLkj2eAexdnDOADk08f2OUHG/egI`:
+
+```sh
+echo '*@arcwright.studio ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII/WllngUwt1UeMhdPZpD2XLlEIM2F60abpiKbJ0KcZH' > allowed_signers
+git -c gpg.ssh.allowedSignersFile=allowed_signers verify-tag v1.2.0
+```
+
+Earlier tags are not signed; each one's signed provenance names the commit it points to.
 
 Each package also carries its software bill of materials, `dist/sbom.cdx.json` (CycloneDX, written by `npm sbom`), which names
 the version and its license and lists its components: none, since Svifa has no runtime dependencies.
@@ -82,9 +92,17 @@ is usually found and taken down. Thresholds for what the checks find:
 - A vulnerability in a component that does not affect Svifa is answered with a VEX statement (OpenVEX), published with the
   advisory or the release notes, saying why it cannot be exploited through Svifa.
 
+A development tool that no longer has releases stays only when a task cannot be done without it, and only once its code has been
+read. Two are installed today, both by the frameworks Svifa's components are tested with, and both only for building and testing:
+`estree-walker` 2 (by Vue's compiler), which walks a syntax tree and has no dependencies, and `is-reference` 3 (by Svelte's
+compiler), one short function that tells whether a node in a syntax tree names a variable, with only type definitions as a
+dependency. Neither reads files, the network or the environment. Each is read again whenever the framework that installs it moves
+to another version of it.
+
 ## Static analysis
 
-CodeQL, with its extended security queries, analyses every pull request and every push to `main`. A pull request with an alert
+CodeQL, with its extended security queries, analyses the source, the tests, the scripts, the examples and the workflows on every
+pull request, on every push to `main` and once a week (`.github/workflows/codeql.yml`). A pull request with an alert
 of high or critical security severity, or any error, cannot be merged. Any other alert is fixed, or dismissed with a written
 reason, before the next release.
 
@@ -114,8 +132,9 @@ where Svifa's files enter a page; and the build and release workflow, where the 
 **Secure design principles applied.**
 
 - Economy of mechanism: one small module with no runtime dependencies.
-- Fail-safe defaults: everything that changes the page beyond the wheel (`anchors`, `subpixel`) is off until asked for, and what
-  Svifa cannot do safely in a browser (no `translate`, a scroller that snaps, reduced motion) is left to the browser.
+- Fail-safe defaults: everything that changes the page beyond the wheel (`anchors`, `subpixel`, `snap`) is off until asked for, and
+  what Svifa cannot do safely in a browser (no `translate`, a scroller that snaps without `snap`, reduced motion) is left to the
+  browser.
 - Complete mediation: every event is checked every time (modifier keys, an event already handled, an editable field, a scrolling
   box inside) before Svifa acts on it.
 - Least privilege: the library needs no permission of any kind; the workflows run with read-only tokens, only the publishing job

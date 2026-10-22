@@ -1,0 +1,6 @@
+{
+  "main": "../dist/svelte.cjs",
+  "module": "../dist/svelte.js",
+  "types": "../dist/svelte.d.ts",
+  "sideEffects": false
+}

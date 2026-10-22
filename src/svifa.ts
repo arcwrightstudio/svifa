@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Arcwright Studio
 
 import { Scroller } from './scroller'
+import { ahead, inReach, nearest, placesAhead, same, snapTypeOf, spotsOf, stopOn, type SnapType } from './snap'
 import { Subpixel } from './subpixel'
 import { positionOf, resolve, reveal } from './target'
 import { AxisView, Track } from './track'
@@ -39,6 +40,10 @@ type Settings = Required<Omit<SvifaOptions, 'scroller' | 'duration' | 'native' |
 export type ResolvedOptions = Readonly<Settings>
 
 const CLASSES = ['svifa', 'svifa-gliding', 'svifa-stopped', 'svifa-subpixel']
+
+// A turn of the wheel that comes this long after the one before it (in milliseconds) begins a new movement of the wheel: a trackpad
+// sends its turns a frame apart all through a swipe, a mouse wheel spun on sends its notches closer than this.
+const RUN_GAP = 120
 
 // The keys that scroll a page or a box when nothing editable has the focus.
 const SCROLL_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' ']
@@ -144,6 +149,7 @@ export class Svifa {
       chain: options.chain ?? true,
       subpixel: options.subpixel,
       anchors: options.anchors ?? false,
+      snap: options.snap === true,
       reducedMotion: options.reducedMotion ?? true,
       autoRaf: options.autoRaf ?? true,
     }
@@ -279,8 +285,11 @@ export class Svifa {
       return Promise.resolve(false)
     }
 
-    // a scroller that snaps is left to the browser, which puts every move on a snap point: there the move is made at once
-    if (options.immediate || this.reduced?.matches || this.area.snaps) {
+    // a scroller that snaps rests on the snap point nearest the target; unless Svifa snaps it, it is left to the browser, which puts
+    // every move on a snap point, so there the move is made at once
+    const snap = this.snapping()
+    if (snap) this.snapGoals(goals, snap)
+    if (options.immediate || this.reduced?.matches || (this.area.snaps && !snap)) {
       this.jumpTo(goals)
       return Promise.resolve(true)
     }
@@ -305,8 +314,8 @@ export class Svifa {
   }
 
   /**
-   * Changes how Svifa feels while the page is open: `lerp`, `duration`, `easing`, `wheel`, `wheelSpeed`, `nested`, `native`, `chain`
-   * and `anchors`, each as described for the options. Each one given replaces the one in use, from the next glide or wheel turn;
+   * Changes how Svifa feels while the page is open: `lerp`, `duration`, `easing`, `wheel`, `wheelSpeed`, `nested`, `native`, `chain`,
+   * `anchors` and `snap`, each as described for the options. Each one given replaces the one in use, from the next glide or wheel turn;
    * `duration: undefined` goes back to gliding by `lerp`. A number that is not a finite one leaves that option as it was. The other
    * options belong to the scroller itself and are set when Svifa is made.
    *
@@ -327,6 +336,7 @@ export class Svifa {
     if ('nested' in changes) settings.nested = changes.nested !== false
     if ('native' in changes) settings.native = changes.native
     if ('chain' in changes) settings.chain = changes.chain !== false
+    if ('snap' in changes) settings.snap = changes.snap === true
     if ('anchors' in changes) {
       const had = Boolean(settings.anchors)
       settings.anchors = changes.anchors ?? false
@@ -472,9 +482,11 @@ export class Svifa {
       event.preventDefault()
       return
     }
-    // scrolling switched off on the scroller (a dialog's scroll lock), or a scroller that snaps: the browser's own wheel stands
+    // scrolling switched off on the scroller (a dialog's scroll lock), or a scroller that snaps when Svifa does not snap it: the
+    // browser's own wheel stands
     const moving = turns.map(({ turn }, i) => (this.tracks[i].area.frozen ? 0 : turn))
-    if (moving.every((turn) => turn === 0) || this.area.snaps) return
+    const snap = this.snapping()
+    if (moving.every((turn) => turn === 0) || (this.area.snaps && !snap)) return
 
     this.sync()
     const goals: Goals = this.tracks.map(() => undefined)
@@ -483,6 +495,12 @@ export class Svifa {
       const turn = moving[i]
       if (turn === 0) continue
       const limit = track.area.measure()
+      if (snap && (track.area.horizontal ? snap.x : snap.y)) {
+        const { goal, end } = this.snapTurn(track, turn * this.settings.wheelSpeed, limit, snap.strict, event.timeStamp)
+        if (!end) chained = false
+        goals[i] = goal
+        continue
+      }
       const from = this.fromScrollTo ? track.value : track.goal
       const goal = Math.min(Math.max(from + turn * this.settings.wheelSpeed, 0), limit)
       // at its start or end the wheel goes on to whatever is around the scroller, as the browser's own scrolling does
@@ -495,6 +513,93 @@ export class Svifa {
     event.preventDefault()
     const how = { lerp: this.settings.lerp, duration: this.settings.duration, easing: this.settings.easing }
     this.glideTo(goals, how, false, event.timeStamp)
+  }
+
+  // A turn of the wheel on an axis Svifa snaps. The scroller goes where the wheel would take it without snapping (`free`), and rests
+  // where the browser would rest it there. With mandatory snapping, that is the snap place nearest `free`; and when a movement of the
+  // wheel begins (from rest, or after a pause) without getting the scroller past the place it is at or heading to, the next place on,
+  // so one notch or one trackpad swipe moves one place. With proximity snapping, it is `free` itself unless a place is within reach of
+  // it; then it is a place too (the browser would put it on the nearest one once snapping is back on), the one nearest `free` ahead of
+  // where the movement began, so a small turn moves on rather than back. It never goes back against the wheel, nor past a place with
+  // scroll-snap-stop: always. Returns the place, and whether the scroller is at its end this way (resting, with nowhere further to go).
+  private snapTurn(track: Track, by: number, limit: number, strict: boolean, time: number) {
+    const fresh = !track.motion || this.fromScrollTo || time - track.turned > RUN_GAP
+    const anchor = this.fromScrollTo ? track.value : track.goal
+    track.turned = time
+    if (fresh) {
+      track.spots = spotsOf(track.area, (element) => this.drawnOffset(element, track.area))
+      track.rests.clear()
+      track.free = track.start = anchor
+    }
+    if (by === 0) return { goal: anchor, end: false }
+    const spots = track.spots
+    const way = by > 0 ? 1 : -1
+    const free = (track.free = Math.min(Math.max(track.free + by, 0), limit))
+    let goal = free
+    if (strict) {
+      goal = nearest(spots, free) ?? free
+      const next = fresh && (goal - anchor) * way < 0.5 ? ahead(spots, anchor, anchor, way) : null
+      if (next !== null) goal = track.free = next
+    } else {
+      const near = nearest(spots, free)
+      if (near !== null && inReach(near, free, track.area.viewport)) goal = ahead(spots, track.start, free, way) ?? near
+    }
+    // a scroll-snap-stop place holds the whole movement of the wheel, not only its latest turn
+    goal = stopOn(spots, track.start, goal)
+    // The browser has the last word, so that once snapping is back on it leaves the scroller where it rests (browsers differ, most of
+    // all over areas longer than the visible area). A place it would not rest beyond `anchor` gives way to the next it would.
+    if ((goal - anchor) * way >= 0.5) {
+      const rest = this.browserRest(track, goal)
+      goal = (rest - anchor) * way >= 0.5 ? rest : (this.restAhead(track, anchor, way) ?? anchor)
+    }
+    if ((goal - anchor) * way < 0) goal = anchor
+    const resting = same(goal, anchor) && same(track.value, anchor)
+    const further = strict ? ahead(spots, anchor, anchor, way) !== null : way > 0 ? track.value < limit - 0.5 : track.value > 0.5
+    return { goal, end: resting && !further }
+  }
+
+  // The nearest place beyond `from` toward `way` where the browser would rest the scroller, or null when it would rest it at none.
+  private restAhead(track: Track, from: number, way: 1 | -1) {
+    for (const place of placesAhead(track.spots, from, way).slice(0, 8)) {
+      const rest = this.browserRest(track, place)
+      if ((rest - from) * way >= 0.5) return rest
+    }
+    return null
+  }
+
+  // Where the browser's own snapping rests the scroller for `place` on this track's axis: a position written with snapping on is put
+  // at once on the snap position the browser picks. Every axis goes back where it was, and snapping as it was, before anything is
+  // drawn; the scroll events this sends are known as Svifa's own, and its scrollend is held back.
+  private browserRest(track: Track, place: number) {
+    const known = track.rests.get(place)
+    if (known !== undefined) return known
+    const before = this.tracks.map((each) => each.area.position)
+    this.quietEnd = true
+    const rest = this.area.withSnap(() => {
+      track.area.put(place)
+      return track.area.position
+    })
+    for (const [i, each] of this.tracks.entries()) {
+      each.area.put(before[i])
+      if (!each.motion) each.written = before[i]
+    }
+    track.rests.set(place, rest)
+    return rest
+  }
+
+  // How the scroller snaps when Svifa snaps it (the `snap` option, and CSS it can read), or null.
+  private snapping(): SnapType | null {
+    return this.settings.snap ? snapTypeOf(this.area.snapType, this.area.root) : null
+  }
+
+  // Puts each goal of a move on an axis that snaps where the browser would rest the scroller for it, as it does a move of its own.
+  private snapGoals(goals: Goals, snap: SnapType) {
+    for (const [i, track] of this.tracks.entries()) {
+      const goal = goals[i]
+      if (goal === undefined || !(track.area.horizontal ? snap.x : snap.y)) continue
+      track.rests.clear()
+      goals[i] = this.browserRest(track, goal)
+    }
   }
 
   // A scroller that moves one way: the wheel's larger movement, or nothing when a vertical scroller is moved only sideways (a
@@ -681,6 +786,8 @@ export class Svifa {
     this.fromScrollTo = fromScrollTo
     this.locked = Boolean(how.lock)
     this.quietEnd = true
+    // the browser's snapping would put every frame on a snap point: it is held off until the glide rests on the place it is aimed at
+    if (this.area.snaps) this.area.holdSnap(true)
     this.layer?.begin(!this.isGliding)
     for (const [i, track] of this.tracks.entries()) {
       const goal = goals[i]
@@ -764,6 +871,7 @@ export class Svifa {
     this.fromScrollTo = false
     for (const track of this.tracks) track.report.velocity = 0
     this.layer?.clear()
+    this.area.holdSnap(false)
     this.mark()
     const finish = this.finish
     this.finish = null
@@ -790,6 +898,7 @@ export class Svifa {
     this.fromScrollTo = false
     this.quietEnd = false
     this.layer?.clear()
+    this.area.holdSnap(false)
     this.mark()
     const finish = this.finish
     this.finish = null

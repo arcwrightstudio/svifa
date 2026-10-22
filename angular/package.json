@@ -1,0 +1,6 @@
+{
+  "main": "../dist/angular.cjs",
+  "module": "../dist/angular.js",
+  "types": "../dist/angular.d.ts",
+  "sideEffects": false
+}

@@ -7,6 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { gzipSync } from 'node:zlib'
 import { expect, test } from '@playwright/test'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -20,6 +21,13 @@ const node = (code: string, type: 'module' | 'commonjs') => {
 }
 
 test.describe('the package', () => {
+  test('is as small as the README says, minified and gzipped, to within half a kilobyte', () => {
+    const said = /about (\d+(?:\.\d+)?) kB minified and gzipped/.exec(readFileSync(join(root, 'README.md'), 'utf8'))
+    expect(said, 'the README gives the size as "about N kB minified and gzipped"').not.toBeNull()
+    const size = gzipSync(readFileSync(join(root, 'dist/svifa.global.min.js')), { level: 9 }).length / 1000
+    expect(Math.abs(size - Number(said![1]))).toBeLessThan(0.5)
+  })
+
   test('imports on a server (no window), and says plainly what to do if constructed there', () => {
     const out = node(
       `import Svifa, { Svifa as Named, easeOut, version } from ${JSON.stringify(pathToFileURL(join(root, 'dist/svifa.js')).href)}

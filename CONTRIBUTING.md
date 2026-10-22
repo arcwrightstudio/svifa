@@ -18,23 +18,27 @@ Development needs Node 22.18, 24.11, 26 or later.
 npm ci                   # the tools (and npx playwright install, once, for the browsers)
 npm run lint             # oxlint for defects, and Prettier for the code style (npm run format applies it)
 npm run typecheck        # the library, then the tests and the config files
-npm run build            # dist/: the ES module, the CommonJS file, the script builds, the React entry, the types, the SBOM
+npm run build            # dist/: the ES module, the CommonJS file, the script builds, the framework entries, the types, the SBOM
 npm test                 # the suite in Chromium, Firefox and WebKit, about a minute
 npm run coverage         # how much of src/ the tests run, file by file; fails below the floors in scripts/coverage.mjs
 npm run check:package    # the exports and types as every module resolution reads them, and the CDN tags' pinned hashes
 npm run check:installs   # installs the packed package with npm, pnpm, Yarn 1 and 4 (Plug'n'Play), Bun and Deno; fails on warnings
+npm run check:examples   # builds every example from the packed package with its framework's own tool and drives it in a browser
+npm run check:oldest     # each framework entry's tests on the oldest version of its framework that package.json supports
 ```
 
-`SVIFA_REACT_DIR=<a node_modules folder with another React> npx playwright test tests/react.spec.ts` runs the React entry's tests
-against another React version (React 18 is supported as well as 19).
+`SVIFA_<NAME>_DIR=<a node_modules folder> npx playwright test tests/<name>.spec.ts` runs a framework entry's tests against another
+version of its framework (`SVIFA_REACT_DIR`, `SVIFA_VUE_DIR`, `SVIFA_SVELTE_DIR`, `SVIFA_SOLID_DIR` or `SVIFA_ANGULAR_DIR`);
+`check:oldest` does this for the oldest version of each.
 
 ### When the checks run
 
 On every pull request and every push to `main`, CI runs the lint, the license lines, the types, the build, the suite in all three
-engines on the newest Node release and the newest long-term support release, the coverage floors, the package checks and the
-reproducible build check; a pull request also gets dependency review and the sign-off check, and CodeQL analyses both. A pull
-request can merge only once the required checks pass. Before a version is staged on npm, the Release workflow checks the
-dependencies with `npm audit` and runs the lint, the types, the build, the suite and the package checks again.
+engines on the newest Node release and the newest long-term support release, the coverage floors, the package checks, every example
+built and driven in a browser, each framework entry on the oldest version of its framework, and the reproducible build check; a pull
+request also gets dependency review and the sign-off check, and CodeQL analyses both. A pull request can merge only once the
+required checks pass. Before a version is staged on npm, the Release workflow checks the dependencies with `npm audit` and runs the
+lint, the types, the build, the suite and the package checks again.
 
 ### How it works
 
@@ -50,9 +54,13 @@ drawn on the chosen elements. Anything else that moves the scroller (a key, the 
 - `src/subpixel.ts`: draws the part of a pixel the browser cannot scroll by as a `translate` on the chosen elements, holding sticky
   elements still while they are held.
 - `src/target.ts`: what a `scrollTo` target names and the position it stands for (scroll-margin, scroll-padding, nested boxes).
+- `src/snap.ts`: snapping (`snap`): the places a scroller may rest, read from its CSS, and which of them a movement rests on. The
+  browser has the last word: `src/svifa.ts` asks it where it would rest the scroller before each glide.
 - `src/wheel.ts`: a wheel event in pixels, and whether an element inside the scroller takes it itself.
-- `src/types.ts`: the public types; their JSDoc is the reference editors show. `src/react.ts`: the React entry (`SmoothScroll`,
-  `useSvifa`), which imports the core by the package's own name (`tsconfig.json` maps it to `src/index.ts`).
+- `src/types.ts`: the public types; their JSDoc is the reference editors show.
+- `src/react.ts`, `src/vue.ts`, `src/svelte.ts`, `src/solid.ts`, `src/angular.ts` and `astro/SmoothScroll.astro`: the framework
+  entries, each importing the core by the package's own name (`tsconfig.json` maps it to `src/index.ts`), so a project holds one
+  Svifa class whichever it uses. `src/adapter.ts` is what they share: which options retune a Svifa and which make it again.
 - `tests/`: one spec per area. `tests/setup.ts` loads the script build and steps Svifa frame by frame on a clock of the test's own
   (`autoRaf: false`), so every run sees the same frames at any chosen refresh rate. A test for something only some engines have is
   tagged (`@chromium-only`, `@not-webkit`) or listed in `playwright.config.ts`, so it runs only there and nothing is reported
@@ -69,9 +77,9 @@ defects with its correctness and suspicious rules, as `.oxlintrc.json` sets them
 drive, and call a constructor for what it does). `npm run lint` checks both, and CI runs it on every change. An exception to a
 rule is rare, and is written where it applies, with the reason beside it.
 
-Every source file opens with two lines: the license as an [SPDX](https://spdx.dev/learn/handling-license-info/) identifier, and
-the copyright that `LICENSE` gives. CSS and HTML files write them in their own comments. A new file starts with them too, and CI
-checks every file for them.
+Every source file opens with two lines: the license as an [SPDX](https://spdx.dev/learn/handling-license-info/) identifier, and the
+copyright that `LICENSE` gives. CSS, HTML, Vue, Svelte and Astro files write them in their own comments. A new file starts with them
+too, and CI checks every file for them.
 
 ```ts
 // SPDX-License-Identifier: MIT

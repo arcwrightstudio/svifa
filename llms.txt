@@ -23,7 +23,8 @@ Script tag: https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.1.0/dist/svifa
 - To scroll from code, call svifa.scrollTo(...), not window.scrollTo: a scroll Svifa did not make ends any glide at once.
 - Optional CSS: import '@arcwrightstudio/svifa/svifa.css' (stop() then also holds the keyboard and the scroll bar).
 - Reduced motion is followed by default: the wheel stays the browser's and scrollTo moves at once.
-- A scroller with scroll-snap-type is left to the browser (the wheel scrolls natively; scrollTo moves at once).
+- A scroller with scroll-snap-type is left to the browser (the wheel scrolls natively; scrollTo moves at once) unless the snap
+  option is on: then Svifa glides to its snap points and rests exactly where the browser would (see Options).
 - Works under a strict Content Security Policy, Trusted Types included: no inline script or style, no eval, nothing fetched.
 
 ## Plain JavaScript
@@ -54,20 +55,81 @@ useSvifa((g) => setProgress(g.progress))             // called on every scroll
 ```
 
 SmoothScroll props are the options below; `scroller` may also be a ref. Changing lerp, duration, easing, wheel, wheelSpeed, nested,
-native, chain or anchors retunes the running Svifa; changing scroller, axis, subpixel (a selector), reducedMotion or autoRaf makes it
-again. Works under StrictMode.
+native, chain, anchors or snap retunes the running Svifa (a prop taken off goes back to its default); changing scroller, axis,
+subpixel (a selector), reducedMotion or autoRaf makes it again. Works under StrictMode.
 
-## Other frameworks
+## Vue and Nuxt (@arcwrightstudio/svifa/vue, needs vue 3.3 or later)
 
-- Vue: `let svifa; onMounted(() => (svifa = new Svifa())); onBeforeUnmount(() => svifa?.destroy())`
-- Nuxt 4: app/plugins/svifa.client.ts (Nuxt 3: plugins/svifa.client.ts):
-  `export default defineNuxtPlugin(() => ({ provide: { svifa: new Svifa() } }))`
-- Svelte / SvelteKit (a component, or src/routes/+layout.svelte): `onMount(() => { const svifa = new Svifa(); return () =>
-  svifa.destroy() })`
-- Angular (root component, src/app/app.ts), in the constructor, with `zone = inject(NgZone)` and
-  `destroyRef = inject(DestroyRef)`: `afterNextRender(() => { const svifa = zone.runOutsideAngular(() => new Svifa());
-  destroyRef.onDestroy(() => svifa.destroy()) })`. Works with zone.js and without it.
-- Astro: `<script>import Svifa from '@arcwrightstudio/svifa'; new Svifa()</script>` in a layout.
+```vue
+<script setup>
+import { SmoothScroll, useSvifa } from '@arcwrightstudio/svifa/vue'
+import '@arcwrightstudio/svifa/svifa.css'          // Nuxt: css: ['@arcwrightstudio/svifa/svifa.css'] in nuxt.config.ts
+</script>
+<template><SmoothScroll :lerp="0.08"><RouterView /></SmoothScroll></template>   <!-- Nuxt: <NuxtPage /> in app/app.vue -->
+```
+
+Inside it: `const svifa = useSvifa()` (a ref, null on the server and until made), `useSvifa((g) => (progress.value = g.progress))`.
+Props as React's; `scroller` may also be a template ref (null waits for it). A flag written alone is on (`<SmoothScroll anchors>`);
+one left out keeps its default. It renders only what it holds.
+
+## Svelte and SvelteKit (@arcwrightstudio/svifa/svelte, needs svelte 4 or 5)
+
+```svelte
+<script>
+  // src/routes/+layout.svelte for a whole SvelteKit site
+  import { smoothScroll, useSvifa } from '@arcwrightstudio/svifa/svelte'
+  import '@arcwrightstudio/svifa/svifa.css'
+  const svifa = smoothScroll({ lerp: 0.08 })      // a store: $svifa is null on the server and until made
+</script>
+```
+
+Call smoothScroll while the component starts; it makes the Svifa on mount and takes it off on destroy, and shares the store with
+components inside: `useSvifa()` returns it, `useSvifa((g) => (progress = g.progress))` also listens. For an element: `smoothScroll({
+scroller: () => box })` with `bind:this={box}`. Retune with `$svifa?.configure({ lerp })`.
+
+## Solid (@arcwrightstudio/svifa/solid, needs solid-js 1.6 or later)
+
+```tsx
+import { SmoothScroll, useSvifa } from '@arcwrightstudio/svifa/solid'
+<SmoothScroll lerp={0.08}>{props.children}</SmoothScroll>
+const svifa = useSvifa()                               // an accessor: svifa() is null on the server and until made
+useSvifa((g) => setProgress(g.progress))
+```
+
+Props as React's; `scroller` may also be a function returning an element (one set with ref).
+
+## Angular (@arcwrightstudio/svifa/angular, needs @angular/core 19 or later)
+
+```ts
+// app.config.ts
+providers: [provideSmoothScroll({ lerp: 0.08 })]
+// any component or service (injection context): a signal, null until made
+svifa = injectSvifa()
+constructor() { injectSvifa((g) => this.progress.set(g.progress)) }
+// a Svifa of a component's own, for a scrolling element from a view query
+box = viewChild.required<ElementRef<HTMLElement>>('box')
+boxed = createSvifa(() => ({ scroller: this.box().nativeElement }))
+```
+
+Made after the first render, only in the browser, outside Angular's zone; works with zone.js and without. Add
+node_modules/@arcwrightstudio/svifa/svifa.css to styles in angular.json.
+
+## Astro (@arcwrightstudio/svifa/astro)
+
+```astro
+---
+import SmoothScroll from '@arcwrightstudio/svifa/astro'
+---
+<SmoothScroll lerp={0.08} anchors={{ offset: -80 }} />   <!-- once, in a layout; it brings the stylesheet -->
+```
+
+Props are the options that can be written in markup (not easing or native); scroller and subpixel are CSS selectors. With view
+transitions (<ClientRouter />) a Svifa is made for each page. A script reaches it as document.querySelector('svifa-scroll').svifa.
+
+## Without a component
+
+Make it in the browser and destroy it when whatever made it goes away: `const svifa = new Svifa()` in an effect, onMounted,
+onMount, afterNextRender or a script tag, then `svifa.destroy()`.
 
 ## Options (new Svifa(options))
 
@@ -85,6 +147,7 @@ again. Works under StrictMode.
 | chain | true | For an element scroller: at its start or end the wheel goes on to the page. |
 | subpixel | none | A selector, a list or a function: elements drawn between whole pixels while the content glides (see below). |
 | anchors | false | true, or scrollTo options: glide to same-page links (#id, #, #top). Adds a history entry, sends hashchange, moves keyboard focus for a link pressed from the keyboard. |
+| snap | false | Glide to the snap points the page sets in CSS (scroll-snap-type, scroll-snap-align). The wheel goes as far as it would and rests on the nearest point; mandatory: one notch or swipe moves one point; proximity: rests on a point only within a third of the visible area. scrollTo and same-page links rest on the nearest point. scroll-padding, scroll-margin, scroll-snap-stop and areas longer than the visible area are honoured; every rest is where the browser itself would rest. |
 | reducedMotion | true | Follow prefers-reduced-motion. |
 | autoRaf | true | false to call svifa.raf(time) from your own loop (GSAP: gsap.ticker.add((t) => svifa.raf(t * 1000))). |
 
@@ -98,7 +161,7 @@ A number that is not finite is taken as its default.
   arrives), force (glide while stopped). An element lands as for a link to it (scroll-margin and scroll-padding honoured; a nested scrolling box is brought into
   view first). Resolves true on arrival, false if something else moved the scroller, the wheel or a later scrollTo took over, Svifa
   is stopped, or the target is missing (with a warning). Never rejects.
-- configure(changes): change lerp, duration, easing, wheel, wheelSpeed, nested, native, chain, anchors while running
+- configure(changes): change lerp, duration, easing, wheel, wheelSpeed, nested, native, chain, anchors, snap while running
   (duration: undefined goes back to lerp). Other options are fixed at creation.
 - stop() / start(): hold the scroller for a dialog; with svifa.css the keyboard and the scroll bar are held too, and the scroll
   bar's room is kept so nothing shifts.
@@ -112,7 +175,8 @@ scroll (current position: exact while gliding, the browser's at rest), target, l
 (px/s), direction (1, -1, 0), isGliding, isStopped, element (<html> for the page), axis, options (read only); x and y, each axis on
 its own ({ scroll, target, limit, progress, velocity, direction }, null for an axis it does not move); both ways, the single-axis
 properties are the vertical axis. Exports: Svifa (default and named), easeOut, version; types SvifaOptions, ScrollToOptions,
-TunableOptions, SvifaTarget, Point, AxisState, Easing, Axis, SvifaEvent, ResolvedOptions.
+TunableOptions, SvifaTarget, Point, AxisState, Easing, Axis, SvifaEvent, ResolvedOptions. Entries: /react, /vue, /svelte, /solid,
+/angular, /astro, /svifa.css.
 
 ## Events and classes
 
@@ -134,5 +198,5 @@ a listed element uses greyscale antialiasing. Off while reduced motion is on, an
 
 ## Yarn Plug'n'Play
 
-The React entry works through a bundler. Importing it directly in Node through Yarn's experimental ES module loader fails (React
-itself fails the same way there); use require in that case. The core imports either way.
+Every entry works through a bundler, and installing Svifa does not turn on Yarn's experimental ES module loader. Code Node runs
+directly under Plug'n'Play loads Svifa with require; an ES module run that way needs that loader (pnpEnableEsmLoader: true).

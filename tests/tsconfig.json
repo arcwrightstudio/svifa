@@ -7,5 +7,5 @@
     "isolatedDeclarations": false,
     "declaration": false
   },
-  "include": [".", "../playwright.config.ts", "../tsdown.config.ts"]
+  "include": [".", "../playwright.config.ts", "../tsdown.config.mts"]
 }

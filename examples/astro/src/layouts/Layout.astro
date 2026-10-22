@@ -1,0 +1,48 @@
+---
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Arcwright Studio
+
+import { ClientRouter } from 'astro:transitions'
+import SmoothScroll from '@arcwrightstudio/svifa/astro'
+import '../styles/style.css'
+
+const { title } = Astro.props
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <!-- pages change in place, and the page's Svifa is made again for each -->
+    <ClientRouter />
+  </head>
+  <body>
+    <!-- the page glides, and so do same-page links, stopping below the sticky header -->
+    <SmoothScroll subpixel="main > section" anchors={{ offset: -56 }} />
+    <header>
+      <nav>
+        <a href="#one">One</a>
+        <a href="#two">Two</a>
+        <a href="#three">Three</a>
+        <a href="#top">Top</a>
+      </nav>
+      <progress value="0" max="1"></progress>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <script>
+      import type Svifa from '@arcwrightstudio/svifa'
+
+      // the reading progress, from the Svifa of each page as it comes in
+      document.addEventListener('astro:page-load', () => {
+        const svifa = (document.querySelector('svifa-scroll') as (Element & { svifa: Svifa | null }) | null)?.svifa
+        const bar = document.querySelector('progress')
+        svifa?.on('scroll', ({ progress }) => {
+          if (bar) bar.value = progress
+        })
+      })
+    </script>
+  </body>
+</html>

@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Arcwright Studio
 
 import { Svifa, type SvifaOptions } from '@arcwrightstudio/svifa'
+import { feelOf, subpixelKey, subpixelOf } from './adapter'
 import {
   createContext,
   createElement,
@@ -26,8 +27,9 @@ const SvifaContext = createContext<Svifa | null>(null)
 
 /**
  * Smooth scrolling as a component. Render it once, near the root (in Next.js, in the root layout); its props are Svifa's options.
- * Changing `lerp`, `duration`, `easing`, `wheel`, `wheelSpeed`, `nested`, `native`, `chain` or `anchors` retunes the Svifa it made;
- * changing `scroller`, `axis`, `subpixel` (as a selector), `reducedMotion` or `autoRaf` makes it again. Anything rendered inside it
+ * Changing `lerp`, `duration`, `easing`, `wheel`, `wheelSpeed`, `nested`, `native`, `chain`, `anchors` or `snap` retunes the Svifa it
+ * made, and one taken off goes back to its default; changing `scroller`, `axis`, `subpixel` (as a selector), `reducedMotion` or
+ * `autoRaf` makes it again. Anything rendered inside it
  * reaches the Svifa with `useSvifa`.
  *
  * @example
@@ -61,40 +63,30 @@ export function useSvifa(onScroll?: (svifa: Svifa) => void): Svifa | null {
 }
 
 // Makes the Svifa once the component is in the page, and takes it off when it leaves. What it scrolls makes it again; how it feels is
-// retuned in place.
-function useMadeSvifa({ scroller, axis, subpixel, reducedMotion, autoRaf, ...feel }: Omit<SmoothScrollProps, 'children'>) {
+// retuned in place. A `subpixel` list or function is read through the latest one given, so a new one on each render (an inline
+// arrow) is not a change.
+function useMadeSvifa(options: Omit<SmoothScrollProps, 'children'>) {
+  const { scroller, axis, subpixel, reducedMotion, autoRaf } = options
   const [svifa, setSvifa] = useState<Svifa | null>(null)
-  const latest = useRef({ feel, subpixel })
+  const latest = useRef(options)
   useEffect(() => {
-    latest.current = { feel, subpixel }
+    latest.current = options
   })
-  // A selector names its elements. A list or a function is read through the latest one given, so a new one on each render (an
-  // inline arrow) is not a change.
-  const subpixelKey = typeof subpixel === 'string' ? subpixel : subpixel === undefined ? '' : 'given'
+  const named = subpixelKey(subpixel)
 
   useEffect(() => {
     const target = scroller && 'current' in scroller ? (scroller.current ?? undefined) : scroller
-    const source: SvifaOptions['subpixel'] =
-      subpixelKey === '' || typeof latest.current.subpixel === 'string'
-        ? (latest.current.subpixel as string | undefined)
-        : () => {
-            const given = latest.current.subpixel
-            return typeof given === 'function'
-              ? given()
-              : typeof given === 'string'
-                ? document.querySelectorAll(given)
-                : (given ?? [])
-          }
-    const made = new Svifa({ ...latest.current.feel, scroller: target, axis, subpixel: source, reducedMotion, autoRaf })
+    const source = subpixelOf(() => latest.current.subpixel)
+    const made = new Svifa({ ...feelOf(latest.current), scroller: target, axis, subpixel: source, reducedMotion, autoRaf })
     setSvifa(made)
     return () => {
       made.destroy()
       setSvifa(null)
     }
-  }, [scroller, axis, subpixelKey, reducedMotion, autoRaf])
+  }, [scroller, axis, named, reducedMotion, autoRaf])
 
   useEffect(() => {
-    svifa?.configure(feel)
+    svifa?.configure(feelOf(options))
   })
   return svifa
 }

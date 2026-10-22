@@ -4,7 +4,8 @@
 import type { Scroller } from './scroller'
 import type { Point, SvifaTarget } from './types'
 
-const SCROLLS = ['auto', 'scroll', 'overlay', 'hidden']
+/** The overflow values that make an element scroll its content (hidden scrolls too, by script). */
+export const SCROLLS: readonly string[] = ['auto', 'scroll', 'overlay', 'hidden']
 
 /**
  * What a target names: a position in pixels, or an element (or null when it names nothing on the page). `'#'` and `'#top'` (when
@@ -63,8 +64,8 @@ function side(horizontal: boolean, reversed: boolean, property: 'scrollMargin' |
   return `${property}${horizontal ? (reversed ? 'Right' : 'Left') : 'Top'}` as const
 }
 
-// A computed length in pixels; a percentage (scroll-padding may be one) is of the visible area.
-function lengthOf(value: string, of: number) {
+/** A computed length in pixels; a percentage (scroll-padding may be one) is of the visible area. */
+export function lengthOf(value: string, of: number): number {
   const number = Number.parseFloat(value) || 0
   return value.endsWith('%') ? (number / 100) * of : number
 }

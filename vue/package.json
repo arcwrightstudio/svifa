@@ -1,0 +1,6 @@
+{
+  "main": "../dist/vue.cjs",
+  "module": "../dist/vue.js",
+  "types": "../dist/vue.d.ts",
+  "sideEffects": false
+}

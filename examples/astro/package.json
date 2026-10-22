@@ -1,0 +1,14 @@
+{
+  "name": "svifa-example-astro",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@arcwrightstudio/svifa": "^1.2.0",
+    "astro": "^7.3.8"
+  }
+}

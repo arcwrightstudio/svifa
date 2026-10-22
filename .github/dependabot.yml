@@ -29,7 +29,17 @@ updates:
     labels: [dependencies]
 
   - package-ecosystem: npm
-    directories: [/examples/vite, /examples/next]
+    directories:
+      [
+        /examples/vite,
+        /examples/next,
+        /examples/vue,
+        /examples/nuxt,
+        /examples/sveltekit,
+        /examples/solid,
+        /examples/angular,
+        /examples/astro,
+      ]
     schedule:
       interval: monthly
     cooldown:

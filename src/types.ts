@@ -111,6 +111,18 @@ export interface SvifaOptions {
   anchors?: boolean | ScrollToOptions
 
   /**
+   * Glide to the snap points the page sets in CSS: `scroll-snap-type` on the scroller, `scroll-snap-align` on what it holds. The wheel
+   * moves as far as it would without snapping, and the glide comes to rest on the nearest snap point; with `mandatory`, a turn too
+   * small to get halfway there still goes on to the next one, so one notch or one trackpad swipe moves one point, and with
+   * `proximity` it rests on a point only within a third of the visible area. `scrollTo` and same-page links rest on the snap point
+   * nearest their target. `scroll-padding`, `scroll-margin`, `scroll-snap-stop: always` and areas longer than the visible area are
+   * honoured as the browser honours them. Left off, a scroller that snaps is left to the browser: the wheel scrolls it as the browser
+   * does, and `scrollTo` moves at once.
+   * @default false
+   */
+  snap?: boolean
+
+  /**
    * Follow the reader's reduced-motion setting: while it is on, the wheel is left to the browser and `scrollTo` moves at once.
    * @default true
    */
@@ -126,7 +138,7 @@ export interface SvifaOptions {
 /** The options `configure` can change while Svifa runs: how it feels, as opposed to what it scrolls. */
 export type TunableOptions = Pick<
   SvifaOptions,
-  'lerp' | 'duration' | 'easing' | 'wheel' | 'wheelSpeed' | 'nested' | 'native' | 'chain' | 'anchors'
+  'lerp' | 'duration' | 'easing' | 'wheel' | 'wheelSpeed' | 'nested' | 'native' | 'chain' | 'anchors' | 'snap'
 >
 
 /** Options for one glide made with `scrollTo`. */
