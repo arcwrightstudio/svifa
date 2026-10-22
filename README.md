@@ -70,7 +70,7 @@ imports it as published, Yarn's Plug'n'Play mode included.
 Or load the script build, which sets `window.Svifa`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.1.0/dist/svifa.global.min.js" integrity="sha384-qKb8HGrSvPlPYWa82GEkPwHwfWHPnLTgRQEbT9FTWXv65mbh9DIDVIlMgCtLt50X" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.2.0/dist/svifa.global.min.js" integrity="sha384-Cvbx0AtzHAYXN/83k5dga5GIWLE56mbxDTK87Hk3OdpWBtLbcH3kYCymXOMyyIaC" crossorigin="anonymous"></script>
 ```
 
 Pin the exact version in the address, as here: the `integrity` hash then makes the browser refuse any file that differs from the
@@ -364,8 +364,8 @@ each page as it comes in. A script reaches the page's Svifa through the hidden e
 ### A plain page
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.1.0/svifa.css" integrity="sha384-otF4Jeb3ig0lwx4TPg07EA4DX21Rv2bYdenWzivt0s9iF/itD6ESvFkAKjyNPwyE" crossorigin="anonymous" />
-<script src="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.1.0/dist/svifa.global.min.js" integrity="sha384-qKb8HGrSvPlPYWa82GEkPwHwfWHPnLTgRQEbT9FTWXv65mbh9DIDVIlMgCtLt50X" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.2.0/svifa.css" integrity="sha384-otF4Jeb3ig0lwx4TPg07EA4DX21Rv2bYdenWzivt0s9iF/itD6ESvFkAKjyNPwyE" crossorigin="anonymous" />
+<script src="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.2.0/dist/svifa.global.min.js" integrity="sha384-Cvbx0AtzHAYXN/83k5dga5GIWLE56mbxDTK87Hk3OdpWBtLbcH3kYCymXOMyyIaC" crossorigin="anonymous"></script>
 <script>
   const svifa = new Svifa()
 </script>
