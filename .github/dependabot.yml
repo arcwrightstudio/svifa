@@ -29,17 +29,7 @@ updates:
     labels: [dependencies]
 
   - package-ecosystem: npm
-    directories:
-      [
-        /examples/vite,
-        /examples/next,
-        /examples/vue,
-        /examples/nuxt,
-        /examples/sveltekit,
-        /examples/solid,
-        /examples/angular,
-        /examples/astro,
-      ]
+    directories: [/examples/vite, /examples/next, /examples/vue, /examples/nuxt, /examples/sveltekit, /examples/solid, /examples/astro]
     schedule:
       interval: monthly
     cooldown:
@@ -47,4 +37,25 @@ updates:
     groups:
       examples:
         patterns: ['*']
+    ignore:
+      # Node's types stay on a long-term support line, as above
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+    labels: [dependencies]
+
+  # Each Angular release names the TypeScript versions it builds with, so the Angular example's TypeScript moves with Angular
+  - package-ecosystem: npm
+    directory: /examples/angular
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      angular-example:
+        patterns: ['*']
+    ignore:
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+      - dependency-name: typescript
+        update-types: [version-update:semver-major, version-update:semver-minor]
     labels: [dependencies]
