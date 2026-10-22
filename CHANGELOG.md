@@ -16,11 +16,15 @@ Svifa follows [semantic versioning](https://semver.org).
   (`@arcwrightstudio/svifa/solid`: `SmoothScroll`, `useSvifa`), Angular (`@arcwrightstudio/svifa/angular`: `provideSmoothScroll`,
   `injectSvifa`, `createSvifa`) and Astro (`@arcwrightstudio/svifa/astro`: `SmoothScroll`, view transitions included). Each renders
   on a server and is tested on the oldest version of its framework it supports: Vue 3.3, Svelte 4, Solid 1.6 and Angular 19.
-- Examples for Vue, Nuxt, SvelteKit, Solid, Angular and Astro. Every example is built with its framework's own tool from the package
-  as it would be published, and driven in a browser, on each change.
+- Examples for Vue, Nuxt, SvelteKit, Solid, Angular and Astro (Nuxt, SvelteKit and Angular rendered on the server). Every example
+  is built with its framework's own tool from the package as it would be published, served as its framework serves it, and driven
+  in a browser, on each change.
 
 ### Fixed
 
+- Installing Svifa in a Yarn Plug'n'Play project no longer turns on Yarn's experimental ES module loader, nor its warning that the
+  loader is experimental. The package is `"type": "commonjs"`; `dist/package.json` marks the built ES modules for Node, every file
+  keeps its name, and each framework entry imports the core from the file beside it.
 - React: a prop taken off `SmoothScroll` (left out of its props) now goes back to its default; it kept the value it had.
 - The README gave the size as under 8 kB minified and gzipped, which 1.1.0 already passed (8.6 kB). It now gives the size as
   measured, and a test keeps it true.

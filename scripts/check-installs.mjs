@@ -3,8 +3,10 @@
 
 // Before a release: packs Svifa as it would be published, installs it with each package manager (npm, pnpm, Yarn 1, Yarn 4 in
 // Plug'n'Play mode, Bun, Deno) into a fresh project in a temporary folder, and proves it works there: an ES module import, a CommonJS
-// require, a type check and a bundle with the stylesheet; with npm, every framework entry beside its framework too. Any warning printed while the package runs, is bundled or is type checked
-// fails the check. Bun, Deno and Yarn 4 are fetched through npx and corepack when missing.
+// require, a type check and a bundle with the stylesheet; with npm, every framework entry beside its framework too, and every entry
+// of the package linked from its folder (npm install <folder>, as while developing beside it). Any warning printed while the
+// package runs, is bundled or is type checked fails the check. Bun, Deno and Yarn 4 are fetched through npx and corepack when
+// missing.
 // usage: npm run check:installs
 import { execSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -16,7 +18,9 @@ const REPO = fileURLToPath(new URL('..', import.meta.url))
 const HERE = mkdtempSync(join(tmpdir(), 'svifa-installs-'))
 const TOOLS = join(REPO, 'node_modules')
 const { version } = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
-execSync(`npm pack --pack-destination "${HERE}"`, { cwd: REPO, stdio: 'ignore' })
+// the package as it would be published; a warning while packing it stops the check
+const packed = execSync(`npm pack --pack-destination "${HERE}" 2>&1`, { cwd: REPO, encoding: 'utf8' })
+if (/warn|deprecat/i.test(packed)) throw new Error(`npm pack warned: ${packed}`)
 const TGZ = join(HERE, `arcwrightstudio-svifa-${version}.tgz`).split('\\').join('/')
 const TSC = `node "${TOOLS}/typescript/bin/tsc"`
 // TypeScript 7 has no node10 resolution any more; a project still on it uses TypeScript 5, so that check runs on TypeScript 5
@@ -35,7 +39,7 @@ export const make = () => new Svifa(options)
 export const go = (g: Svifa): Promise<boolean> => g.scrollTo('#contact', { offset: -80 })
 // @ts-expect-error an unknown option is refused
 export const wrong = () => new Svifa({ smooth: true })`
-// the React entry, beside React (it imports the core by the package's own name, which every manager has to resolve)
+// the React entry, beside React (it imports the core from the file beside it, which every manager has to keep in place)
 const REACT = `import { SmoothScroll, useSvifa } from '@arcwrightstudio/svifa/react'
 console.log(JSON.stringify({ react: typeof SmoothScroll === 'function' && typeof useSvifa === 'function' }))`
 const REACT_TS = `import { SmoothScroll, useSvifa, type SmoothScrollProps } from '@arcwrightstudio/svifa/react'
@@ -69,18 +73,16 @@ const ENTRY = `import Svifa from '@arcwrightstudio/svifa'
 import '@arcwrightstudio/svifa/svifa.css'
 window.svifa = new Svifa()`
 
-const run = (cmd, cwd) =>
-  execSync(cmd, {
-    cwd,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, CI: '1', COREPACK_ENABLE_DOWNLOAD_PROMPT: '0' },
-  }).trim()
-// runs a step that uses the package, with what it writes to stderr read too: a warning there is a failure (npm's own lines, such as
-// npx saying it fetched Bun or Deno, are about the machine, not the package)
+// The environment every step runs in: the caller's, without its colour settings (a tool may set one for its own children, and Node
+// warns when it finds both).
+const ENV = { ...process.env, CI: '1', COREPACK_ENABLE_DOWNLOAD_PROMPT: '0' }
+delete ENV.NO_COLOR
+delete ENV.FORCE_COLOR
+const run = (cmd, cwd) => execSync(cmd, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: ENV }).trim()
+// runs a step, an install included, with what it writes to stderr read too: any warning there, whoever prints it, is a failure
 const use = (cmd, cwd) => {
   const out = run(`${cmd} 2>&1`, cwd)
-  const warned = out.split('\n').filter((line) => /warn/i.test(line) && !/^npm warn /i.test(line))
+  const warned = out.split('\n').filter((line) => /warn|deprecat/i.test(line))
   if (warned.length) throw new Error(warned.join(' | '))
   return out
 }
@@ -163,7 +165,7 @@ for (const [name, install] of [
 ]) {
   const dir = project(name)
   attempt(name, [
-    ['install', () => (run(install, dir), true)],
+    ['install', () => (use(install, dir), true)],
     ['esm', () => lastJson(use('node check.mjs', dir)).esm],
     ['cjs', () => lastJson(use('node check.cjs', dir)).cjs],
     ['types (bundler)', () => typecheck(dir, 'bundler')],
@@ -181,25 +183,41 @@ for (const [name, install] of [
   ])
 }
 
+// The package linked from its folder, as npm links a folder it is given: Node finds a linked package's own imports from where its
+// files really are, outside the project, so every import inside it has to work from there (the frameworks are this repository's).
+{
+  const dir = project('npm-linked')
+  attempt('npm-linked', [
+    // the folder without its closing separator (on Windows a closing \ would escape the quote after it)
+    ['install', () => (use(`npm install "${REPO.replace(/[\\/]$/, '')}" --install-links=false --no-audit --no-fund`, dir), true)],
+    ['esm', () => lastJson(use('node check.mjs', dir)).esm],
+    ['cjs', () => lastJson(use('node check.cjs', dir)).cjs],
+    ['react entry', () => lastJson(use('node react.mjs', dir)).react],
+    ['react entry (cjs)', () => lastJson(use('node react.cjs', dir)).react],
+    ['framework entries', () => lastJson(use('node frameworks.mjs', dir)).frameworks],
+  ])
+}
+
 // Yarn 4 in its strict Plug'n'Play mode: no node_modules, every import resolved through .pnp.cjs
 {
   const dir = project('yarn4-pnp')
   writeFileSync(join(dir, '.yarnrc.yml'), 'nodeLinker: pnp\nenableGlobalCache: false\n')
   // a project of its own, whatever package.json sits in a folder above
   writeFileSync(join(dir, 'yarn.lock'), '')
-  const yarn = 'corepack yarn@4.9.2'
+  const yarn = 'corepack yarn@4.18.1'
   attempt('yarn4-pnp', [
+    // Svifa does not make Yarn turn on its experimental ES module loader (.pnp.loader.mjs), which Yarn announces with a warning
     [
       'install',
       () => (
-        run(`${yarn} add "@arcwrightstudio/svifa@file:${TGZ}" react@${REACT_VERSION}`, dir),
-        existsSync(join(dir, '.pnp.cjs'))
+        use(`${yarn} add "@arcwrightstudio/svifa@file:${TGZ}" react@${REACT_VERSION}`, dir),
+        existsSync(join(dir, '.pnp.cjs')) && !existsSync(join(dir, '.pnp.loader.mjs'))
       ),
     ],
-    ['esm', () => lastJson(use(`${yarn} node check.mjs`, dir)).esm],
     ['cjs', () => lastJson(use(`${yarn} node check.cjs`, dir)).cjs],
-    // through require: Yarn's ES module loader for Plug'n'Play is experimental and cannot load React itself on current Node
     ['react entry', () => lastJson(use(`${yarn} node react.cjs`, dir)).react],
+    // an ES module through Plug'n'Play, as a bundler loads it (esbuild reads the project's .pnp data itself)
+    ['bundle with css', () => bundle(dir)],
   ])
 }
 
@@ -208,7 +226,7 @@ for (const [name, install] of [
   const dir = project('bun')
   const bun = 'npx -y bun@1'
   attempt('bun', [
-    ['install', () => (run(`${bun} add "${TGZ}" react@${REACT_VERSION}`, dir), true)],
+    ['install', () => (use(`${bun} add "${TGZ}" react@${REACT_VERSION}`, dir), true)],
     ['react entry', () => lastJson(use(`${bun} react.mjs`, dir)).react],
     ['esm', () => lastJson(use(`${bun} check.mjs`, dir)).esm],
     ['cjs', () => lastJson(use(`${bun} check.cjs`, dir)).cjs],
@@ -222,7 +240,7 @@ for (const [name, install] of [
   writeFileSync(join(dir, 'deno.json'), JSON.stringify({ nodeModulesDir: 'manual' }))
   const deno = 'npx -y deno@2'
   attempt('deno', [
-    ['install', () => (run(`npm install "${TGZ}" --no-audit --no-fund`, dir), true)],
+    ['install', () => (use(`npm install "${TGZ}" --no-audit --no-fund`, dir), true)],
     ['esm', () => lastJson(use(`${deno} run check.mjs`, dir)).esm],
     ['types (deno check)', () => (use(`${deno} check use.ts`, dir), true)],
   ])

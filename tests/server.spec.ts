@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Arcwright Studio
 
 // Each framework entry renders on a server, where there is no window: the component renders what it holds, and makes nothing. Each
-// app is bundled for Node from its source, as the framework's own server build would, and run here.
+// app is bundled for Node from its source, as the framework's own server build would, and run here. Angular's entry is rendered on
+// a server by the Angular example instead (npm run check:examples), with Angular's own server build.
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -104,29 +105,4 @@ test('Solid: SmoothScroll renders what it holds', async () => {
     export default renderToString(() => createComponent(SmoothScroll, { lerp: 0.08, get children() { return 'held' } }))`
   )
   expect(html).toBe('held')
-})
-
-test('Angular: provideSmoothScroll, injectSvifa and createSvifa render on the server', async () => {
-  const html = await render(
-    'angular',
-    `import '@angular/compiler'
-    import { Component, enableProdMode, provideZonelessChangeDetection } from '@angular/core'
-    import { bootstrapApplication } from '@angular/platform-browser'
-    import { provideServerRendering, renderApplication } from '@angular/platform-server'
-    import { createSvifa, injectSvifa, provideSmoothScroll } from '../src/angular'
-
-    enableProdMode()
-
-    @Component({ selector: 'app-root', template: '<p>{{ page() === null && own() === null ? "held" : "made" }}</p>' })
-    class Root {
-      page = injectSvifa(() => {})
-      own = createSvifa({ lerp: 0.08 })
-    }
-    const config = { providers: [provideZonelessChangeDetection(), provideServerRendering(), provideSmoothScroll({ lerp: 0.08 })] }
-    export default renderApplication((context) => bootstrapApplication(Root, config, context), {
-      document: '<html><head></head><body><app-root></app-root></body></html>',
-    })`,
-    { tsconfigRaw: { compilerOptions: { experimentalDecorators: true } } }
-  )
-  expect(html).toContain('<p>held</p>')
 })

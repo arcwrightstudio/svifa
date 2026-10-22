@@ -198,5 +198,5 @@ a listed element uses greyscale antialiasing. Off while reduced motion is on, an
 
 ## Yarn Plug'n'Play
 
-The React entry works through a bundler. Importing it directly in Node through Yarn's experimental ES module loader fails (React
-itself fails the same way there); use require in that case. The core imports either way.
+Every entry works through a bundler, and installing Svifa does not turn on Yarn's experimental ES module loader. Code Node runs
+directly under Plug'n'Play loads Svifa with require; an ES module run that way needs that loader (pnpEnableEsmLoader: true).

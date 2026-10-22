@@ -11,5 +11,13 @@
     "@arcwrightstudio/svifa": "^1.2.0",
     "nuxt": "^4.6.1",
     "vue": "^3.5.44"
+  },
+  "overrides": {
+    "archiver-utils": {
+      "glob": "^13.0.6"
+    }
+  },
+  "allowScripts": {
+    "esbuild": false
   }
 }

@@ -37,7 +37,7 @@
   },
   "license": "MIT",
   "author": "Arcwright Studio",
-  "type": "module",
+  "type": "commonjs",
   "sideEffects": [
     "*.css"
   ],
@@ -153,8 +153,8 @@
     "build": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsdown && npm run sbom",
     "sbom": "node scripts/sbom.mjs",
     "typecheck": "tsc && tsc -p tests",
-    "lint": "oxlint --deny-warnings src tests scripts examples && prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.ts\" \"examples/**/*.{ts,tsx,js,mjs,css,vue}\"",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.ts\" \"examples/**/*.{ts,tsx,js,mjs,css,vue}\"",
+    "lint": "oxlint --deny-warnings src tests scripts examples && prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.{ts,mts}\" \"examples/**/*.{ts,tsx,js,mjs,css,vue}\"",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"*.{ts,mts}\" \"examples/**/*.{ts,tsx,js,mjs,css,vue}\"",
     "test": "playwright test",
     "coverage": "node scripts/coverage.mjs --clean && playwright test --project chromium && node scripts/coverage.mjs",
     "check:package": "publint && attw --pack . --exclude-entrypoints svifa.css astro && node scripts/check-example.mjs",
@@ -171,7 +171,6 @@
     "@angular/compiler": "22.2.3",
     "@angular/core": "22.2.3",
     "@angular/platform-browser": "22.2.3",
-    "@angular/platform-server": "22.2.3",
     "@arethetypeswrong/cli": "0.18.5",
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",

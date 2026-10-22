@@ -13,6 +13,10 @@
           "builder": "@angular/build:application",
           "options": {
             "browser": "src/main.ts",
+            "server": "src/main.server.ts",
+            "outputMode": "server",
+            "ssr": { "entry": "src/server.ts" },
+            "security": { "allowedHosts": ["localhost"] },
             "tsConfig": "tsconfig.json",
             "styles": ["node_modules/@arcwrightstudio/svifa/svifa.css", "src/style.css"]
           }

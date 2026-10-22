@@ -54,7 +54,7 @@ Each example opens on StackBlitz, ready to run and change:
 - **[Vue](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/vue)** and **[Nuxt](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/nuxt)**: `SmoothScroll` around the app and `useSvifa` in a component.
 - **[SvelteKit](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/sveltekit)**: `smoothScroll` in the root layout and `useSvifa` in a component.
 - **[Solid](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/solid)**: `SmoothScroll` around the app and `useSvifa` in a component.
-- **[Angular](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/angular)**: `provideSmoothScroll` in the app's providers, `injectSvifa` for the reading progress, and a box with a Svifa of its own from `createSvifa`.
+- **[Angular](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/angular)**: `provideSmoothScroll` in the app's providers, `injectSvifa` for the reading progress, and a box with a Svifa of its own from `createSvifa`, rendered on the server.
 - **[Astro](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/astro)**: `SmoothScroll` in the layout, with view transitions between two pages.
 - **[A plain page](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/html)**: one HTML file, with Svifa from a CDN.
 
@@ -148,11 +148,10 @@ useEffect(() => {
 }, [])
 ```
 
-**Yarn Plug'n'Play and the React entry.** In a Plug'n'Play project, a bundler (Vite, webpack, Next.js) loads
-`@arcwrightstudio/svifa/react` as it loads React, and that works. Importing it directly in Node through Yarn's ES module loader
-(`yarn node app.mjs`) fails, because that loader is experimental and on current Node cannot load React itself;
-`import React from 'react'` fails the same way. Load it with `require` there instead. The core, `@arcwrightstudio/svifa`, imports
-either way.
+**Yarn Plug'n'Play.** A bundler (Vite, webpack, Next.js) loads Svifa and each of its entries through Plug'n'Play as it loads
+anything else, and installing Svifa does not make Yarn turn on its experimental ES module loader (`.pnp.loader.mjs`). Code that
+Node runs directly under Plug'n'Play loads Svifa with `require`; an ES module run that way needs that loader, which a project turns
+on itself (`pnpEnableEsmLoader: true`).
 
 ### Vue
 

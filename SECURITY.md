@@ -92,9 +92,17 @@ is usually found and taken down. Thresholds for what the checks find:
 - A vulnerability in a component that does not affect Svifa is answered with a VEX statement (OpenVEX), published with the
   advisory or the release notes, saying why it cannot be exploited through Svifa.
 
+A development tool that no longer has releases stays only when a task cannot be done without it, and only once its code has been
+read. Two are installed today, both by the frameworks Svifa's components are tested with, and both only for building and testing:
+`estree-walker` 2 (by Vue's compiler), which walks a syntax tree and has no dependencies, and `is-reference` 3 (by Svelte's
+compiler), one short function that tells whether a node in a syntax tree names a variable, with only type definitions as a
+dependency. Neither reads files, the network or the environment. Each is read again whenever the framework that installs it moves
+to another version of it.
+
 ## Static analysis
 
-CodeQL, with its extended security queries, analyses every pull request and every push to `main`. A pull request with an alert
+CodeQL, with its extended security queries, analyses the source, the tests, the scripts, the examples and the workflows on every
+pull request, on every push to `main` and once a week (`.github/workflows/codeql.yml`). A pull request with an alert
 of high or critical security severity, or any error, cannot be merged. Any other alert is fixed, or dismissed with a written
 reason, before the next release.
 

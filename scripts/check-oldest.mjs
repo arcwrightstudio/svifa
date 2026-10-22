@@ -47,17 +47,27 @@ for (const [name, { peer, install }] of Object.entries(OLDEST)) {
   const dir = join(HERE, name)
   mkdirSync(dir)
   writeFileSync(join(dir, 'package.json'), '{ "private": true }\n')
-  execSync(`npm install --prefix "${dir}" --no-audit --no-fund --ignore-scripts ${install.join(' ')}`, { stdio: 'ignore' })
   try {
-    execSync(`npx playwright test tests/${name}.spec.ts --project chromium --reporter=line`, {
-      cwd: REPO,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, [`SVIFA_${name.toUpperCase()}_DIR`]: join(dir, 'node_modules') },
+    run(`npm install --prefix "${dir}" --no-audit --no-fund --ignore-scripts ${install.join(' ')}`, {})
+    run(`npx playwright test tests/${name}.spec.ts --project chromium --reporter=line`, {
+      [`SVIFA_${name.toUpperCase()}_DIR`]: join(dir, 'node_modules'),
     })
     console.log(`${name.padEnd(8)} ${version} ok`)
   } catch (error) {
-    failed.push(`${name} ${version}: ${String(error.stdout).split('\n').filter(Boolean).slice(-8).join(' | ')}`)
+    const said = [error.stdout, error.message].filter(Boolean).join('\n')
+    failed.push(`${name} ${version}: ${said.split('\n').filter(Boolean).slice(-8).join(' | ')}`)
   }
+}
+
+// Runs a step in the repository with `env` added (and no colour settings, which tools may set one of for their children, and Node
+// warns when it finds both); a warning in what it prints, whoever prints it, fails it.
+function run(command, env) {
+  const environment = { ...process.env, ...env }
+  delete environment.NO_COLOR
+  delete environment.FORCE_COLOR
+  const said = execSync(`${command} 2>&1`, { cwd: REPO, encoding: 'utf8', env: environment })
+  const warned = said.split('\n').filter((line) => /warn|deprecat/i.test(line))
+  if (warned.length) throw new Error(warned.join(' | '))
 }
 
 rmSync(HERE, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })

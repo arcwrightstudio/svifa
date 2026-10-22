@@ -7,10 +7,11 @@
     "importHelpers": true,
     "target": "ES2022",
     "module": "preserve",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": ["node"]
   },
   "angularCompilerOptions": {
     "strictTemplates": true
   },
-  "files": ["src/main.ts"]
+  "files": ["src/main.ts", "src/main.server.ts", "src/server.ts"]
 }

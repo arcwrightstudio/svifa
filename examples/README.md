@@ -8,7 +8,7 @@ Each opens on StackBlitz, ready to run and change:
 - [Nuxt](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/nuxt): the Vue component in `app.vue`, rendered on the server.
 - [SvelteKit](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/sveltekit): `smoothScroll` in the root layout and `useSvifa` in a component, rendered on the server.
 - [Solid](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/solid): Vite and Solid, with `SmoothScroll` around the app and `useSvifa` in a component.
-- [Angular](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/angular): `provideSmoothScroll` in the app's providers, `injectSvifa` for the reading progress, and a box with a Svifa of its own from `createSvifa`.
+- [Angular](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/angular): `provideSmoothScroll` in the app's providers, `injectSvifa` for the reading progress, and a box with a Svifa of its own from `createSvifa`, rendered on the server.
 - [Astro](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/astro): `SmoothScroll` in the layout, with view transitions between two pages.
 - [A plain page](https://stackblitz.com/github/arcwrightstudio/svifa/tree/main/examples/html): one HTML file, with Svifa from a CDN.
 
