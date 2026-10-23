@@ -61,6 +61,36 @@ test.describe('the wheel', () => {
     }
   })
 
+  test('on whole pixels the page never stands still for more than a sixtieth of a second before it rests, at any refresh rate', async ({
+    page,
+  }) => {
+    await open(page)
+    const runs = await page.evaluate(() => {
+      const w = window as any
+      return [60, 120, 240, 500].map((hz) => {
+        window.scrollTo({ top: 0, behavior: 'instant' })
+        const g = new w.Svifa({ autoRaf: false, subpixel: false })
+        w.frame(g, hz)
+        w.wheel(window, 100)
+        // the longest run of frames the page is drawn in the same place while the glide is under way
+        let still = 0
+        let longest = 0
+        let drawn = window.scrollY
+        while (g.isGliding) {
+          w.frame(g, hz)
+          if (window.scrollY === drawn) longest = Math.max(longest, ++still)
+          else still = 0
+          drawn = window.scrollY
+        }
+        g.destroy()
+        return { hz, ms: (longest * 1000) / hz, rest: window.scrollY }
+      })
+    })
+    // a sixtieth of a second, and the frame that shows the move
+    for (const run of runs) expect(run).toEqual({ hz: run.hz, ms: expect.any(Number), rest: 100 })
+    for (const run of runs) expect(run.ms).toBeLessThanOrEqual(1000 / 60 + 1000 / run.hz + 1e-6)
+  })
+
   test('adds up notches that come while a glide is under way', async ({ page }) => {
     await open(page)
     const target = await page.evaluate(() => {
@@ -159,11 +189,11 @@ test.describe('the wheel', () => {
     expect(prevented).toBe(false)
   })
 
-  test('glides over a set time when given a duration', async ({ page }) => {
+  test('glides over a set time when given a duration, never slower than a pixel a sixtieth of a second', async ({ page }) => {
     await open(page)
     const frames = await page.evaluate(() => {
       const w = window as any
-      w.g = new w.Svifa({ autoRaf: false, duration: 0.5 })
+      w.g = new w.Svifa({ autoRaf: false, duration: 0.5, subpixel: false })
       w.frame(w.g)
       w.wheel(window, 300)
       let count = 0
@@ -171,11 +201,21 @@ test.describe('the wheel', () => {
         w.frame(w.g, 60)
         count++
       }
-      return { count, at: window.scrollY }
+      // the easing over half a second, held to a pixel a frame at 60 Hz where it would go slower: the frame it reaches 300 px
+      let model = 0
+      let expected = 0
+      // (short of it by no more than rounding is there)
+      for (let t = 1 / 60; model < 300 - 1e-9; t += 1 / 60) {
+        const eased = t >= 0.5 ? 300 : (300 * (1 - 2 ** (-20 * t))) / (1 - 2 ** -10)
+        model = Math.max(eased, Math.min(300, model + 1))
+        expected++
+      }
+      return { count, expected, at: window.scrollY }
     })
     expect(frames.at).toBe(300)
-    expect(frames.count).toBeGreaterThanOrEqual(29)
-    expect(frames.count).toBeLessThanOrEqual(31)
+    // its time is 30 frames; held to the pace at the slow end of the easing, it arrives before that
+    expect(frames.count).toBe(frames.expected)
+    expect(frames.count).toBeLessThan(30)
   })
 })
 

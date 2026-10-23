@@ -25,9 +25,10 @@ async function check<T>(page: Page, arbitrary: fc.Arbitrary<T>, run: (value: T) 
   await fc.assert(fc.asyncProperty(arbitrary, run), { numRuns })
 }
 
-// The motion's own properties, run at the project's device scale and again at 2, where some browsers keep whole CSS pixels.
+// The motion's own properties, run at the project's device scale and again at 2 and at 1.25, where some browsers keep whole CSS
+// pixels.
 function motion() {
-  test('a glide by lerp follows one curve in time, whatever the frames, and rests on the frame the curve reaches its pixel', async ({
+  test('a glide by lerp follows one curve in time, whatever the frames, never slower than a pixel a sixtieth of a second, and rests on the frame the curve reaches its pixel', async ({
     page,
   }) => {
     await check(page, fc.record({ lerp, from, delta: turn, frames }), async (c) => {
@@ -39,22 +40,29 @@ function motion() {
         const per = Number.isInteger(window.scrollY) ? 1 : devicePixelRatio
         const start = Math.round(from * limit)
         window.scrollTo({ top: start, behavior: 'instant' })
-        const g = new w.Svifa({ autoRaf: false, lerp })
+        // drawn on whole pixels, where the least pace applies
+        const g = new w.Svifa({ autoRaf: false, lerp, subpixel: false })
         let clock = 1000
         g.raf(clock)
         w.wheel(window, delta)
         const goal = g.target
         const rate = lerp * 60
-        let elapsed = 0
+        // the curve, frame by frame: closing in on the goal by lerp, but never slower than 60 px a second, and never past the goal
+        let curve = start
         let off = 0
         let wrongFrame = -1
+        let slowFrame = -1
         let count = 0
         for (; g.isGliding && count < 100000; count++) {
           const ms = frames[count % frames.length]
           clock += ms
-          elapsed += ms / 1000
+          const before = g.scroll
           g.raf(clock)
-          const curve = goal + (start - goal) * Math.exp(-rate * elapsed)
+          const least = (60 * ms) / 1000
+          const closer = goal + (curve - goal) * Math.exp((-rate * ms) / 1000)
+          curve = curve < goal ? Math.max(closer, Math.min(goal, curve + least)) : Math.min(closer, Math.max(goal, curve - least))
+          // every frame moves at least its share of 60 px a second, or the rest of the way
+          if (Math.abs(g.scroll - before) < Math.min(least, Math.abs(goal - before)) - 1e-9 && slowFrame < 0) slowFrame = count
           // the curve rests once the browser would draw it on the pixel of its end (a frame that lands on the half pixel between,
           // to within rounding, may go either way)
           const away = Math.abs(curve - goal) * per
@@ -63,11 +71,12 @@ function motion() {
         }
         const rest = { scroll: g.scroll, y: window.scrollY, gliding: g.isGliding }
         g.destroy()
-        return { start, limit, goal, off, wrongFrame, rest }
+        return { start, limit, goal, off, wrongFrame, slowFrame, rest }
       }, c)
       expect(run.goal).toBe(Math.min(Math.max(run.start + c.delta, 0), run.limit))
       expect(run.off).toBeLessThan(1e-6)
       expect(run.wrongFrame).toBe(-1)
+      expect(run.slowFrame).toBe(-1)
       expect(run.rest).toEqual({ scroll: run.goal, y: run.goal, gliding: false })
     })
   })
@@ -183,7 +192,7 @@ function motion() {
     })
   })
 
-  test('a timed glide follows its curve over its time, arrives on the frame its time runs out, and resolves true', async ({
+  test('a timed glide follows its curve, never slower than a pixel a sixtieth of a second, arrives by the frame its time runs out, and resolves true', async ({
     page,
   }) => {
     const cases = fc.record({
@@ -207,21 +216,31 @@ function motion() {
         const start = Math.round(from * limit)
         const goal = Math.min(Math.max(to, 0), limit)
         window.scrollTo({ top: start, behavior: 'instant' })
-        const g = new w.Svifa({ autoRaf: false })
+        const g = new w.Svifa({ autoRaf: false, subpixel: false })
         let clock = 1000
         g.raf(clock)
         const arrived = g.scrollTo(to, { duration, easing })
         let elapsed = 0
         let off = 0
         let count = 0
-        let due = -1 // the frame on which the time runs out
+        // the curve, frame by frame: the easing over its time, but never slower than 60 px a second toward the goal and never past it
+        // by that rule; it arrives once its time runs out or it reaches the goal, whichever comes first
+        let model = start
+        let due = -1
+        const way = Math.sign(goal - start)
         for (; g.isGliding && count < 100000; count++) {
           const ms = frames[count % frames.length]
           clock += ms
           elapsed += ms / 1000
-          if (due < 0 && elapsed / duration >= 1) due = count
           g.raf(clock)
-          if (g.isGliding) off = Math.max(off, Math.abs(g.scroll - (start + (goal - start) * easing(elapsed / duration))))
+          const t = Math.min(1, elapsed / duration)
+          const eased = t >= 1 ? goal : start + (goal - start) * easing(t)
+          const least = (60 * ms) / 1000
+          model = way > 0 ? Math.max(eased, Math.min(goal, model + least)) : Math.min(eased, Math.max(goal, model - least))
+          // short of the goal by no more than rounding is at the goal
+          if (Math.abs(goal - model) < 1e-9) model = goal
+          if (due < 0 && (t >= 1 || model === goal)) due = count
+          if (g.isGliding) off = Math.max(off, Math.abs(g.scroll - model))
         }
         const result = { goal, start, off, last: count - 1, due, resolved: await arrived, scroll: g.scroll, y: window.scrollY }
         g.destroy()
@@ -241,6 +260,12 @@ test.describe('properties', () => {
 
   test.describe('at a device scale of 2', () => {
     test.use({ deviceScaleFactor: 2 })
+    motion()
+  })
+
+  // a part of a device pixel per CSS pixel, as on a laptop set to 125%, where browsers keep whole CSS pixels
+  test.describe('at a device scale of 1.25', () => {
+    test.use({ deviceScaleFactor: 1.25 })
     motion()
   })
 

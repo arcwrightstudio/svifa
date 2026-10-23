@@ -3,15 +3,17 @@
 // Copyright (c) 2026 Arcwright Studio
 
 // Smooth scrolling for an Astro site: put it once in a layout. Its props are the options of Svifa that can be written in markup (no
-// functions), with `scroller` and `subpixel` as CSS selectors. The Svifa is made when the page loads, and with Astro's view
-// transitions again for each page; a script reaches it as `document.querySelector('svifa-scroll').svifa`.
+// functions), with `scroller` as a CSS selector and `subpixel` as true, false or a CSS selector. The Svifa is made when the page
+// loads, and with Astro's view transitions again for each page; a script reaches it as `document.querySelector('svifa-scroll').svifa`.
 import type { SvifaOptions } from '@arcwrightstudio/svifa'
 
-export type Props = Omit<SvifaOptions, 'scroller' | 'subpixel' | 'easing' | 'native'> & {
+export type Props = Omit<SvifaOptions, 'scroller' | 'subpixel' | 'easing' | 'native' | 'nested'> & {
   /** What scrolls: leave it out for the page, or a CSS selector for a scrolling element. */
   scroller?: string
-  /** The elements drawn between pixels while the content glides, as a CSS selector. */
-  subpixel?: string
+  /** Drawing between pixels: left on, Svifa chooses the elements; a CSS selector names them; false draws on whole pixels. */
+  subpixel?: boolean | string
+  /** How scrolling boxes inside take the wheel: true (they glide), 'native' (the browser scrolls them) or false (the page glides). */
+  nested?: boolean | 'native'
 }
 ---
 

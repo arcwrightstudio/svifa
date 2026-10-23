@@ -75,7 +75,7 @@ test('SmoothScroll makes one Svifa (StrictMode included), retunes it when a prop
     const prevented = w.wheel(window, 200)
     for (let t = 1016; w.made.isGliding; t += 16) w.made.raf(t)
     return {
-      classes: document.documentElement.className,
+      classes: [...document.documentElement.classList].filter((name) => name !== 'svifa-subpixel').join(' '),
       prevented,
       y: window.scrollY,
       reports: w.reports > 0,

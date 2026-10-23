@@ -14,9 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         {/* the page glides, and so do same-page links, stopping below the sticky header */}
-        <SmoothScroll subpixel="main > section" anchors={{ offset: -56 }}>
-          {children}
-        </SmoothScroll>
+        <SmoothScroll anchors={{ offset: -56 }}>{children}</SmoothScroll>
       </body>
     </html>
   )

@@ -29,7 +29,7 @@ const SvifaContext = createContext<Accessor<Svifa | null>>(() => null)
 /**
  * Smooth scrolling as a component. Render it once, near the root; its props are Svifa's options. Changing `lerp`, `duration`,
  * `easing`, `wheel`, `wheelSpeed`, `nested`, `native`, `chain`, `anchors` or `snap` retunes the Svifa it made; changing `scroller`,
- * `axis`, `subpixel` (as a selector), `reducedMotion` or `autoRaf` makes it again. Anything inside it reaches the Svifa with
+ * `axis`, `subpixel` (true, false or a selector), `reducedMotion` or `autoRaf` makes it again. Anything inside it reaches the Svifa with
  * `useSvifa`. On the server it renders only what it holds.
  *
  * @example

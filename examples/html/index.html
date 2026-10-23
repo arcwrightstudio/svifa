@@ -92,10 +92,6 @@
         margin: 1rem 0 0;
         color: var(--soft);
       }
-      /* drawn between pixels while the page glides (Svifa's subpixel option) */
-      .svifa-subpixel main > section {
-        will-change: translate;
-      }
     </style>
   </head>
   <body>
@@ -122,10 +118,10 @@
         <p>Scroll slowly and watch the text: it moves evenly to the end, with no one-pixel hops as it settles.</p>
       </section>
     </main>
-    <script src="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.2.0/dist/svifa.global.min.js" integrity="sha384-Cvbx0AtzHAYXN/83k5dga5GIWLE56mbxDTK87Hk3OdpWBtLbcH3kYCymXOMyyIaC" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.2.0/dist/svifa.global.min.js" integrity="sha384-n3L0pLa5h9B9j77pDhzCdgL6dXVbWK7DxrxGT54MXzXlBQjMkGbCTZIXJE8FWPw2" crossorigin="anonymous"></script>
     <script>
       // The page glides, and so do same-page links, stopping below the sticky header.
-      const svifa = new Svifa({ subpixel: 'main > section', anchors: { offset: -56 } })
+      const svifa = new Svifa({ anchors: { offset: -56 } })
       const bar = document.querySelector('progress')
       svifa.on('scroll', ({ progress }) => {
         bar.value = progress

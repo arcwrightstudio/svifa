@@ -14,4 +14,8 @@ Each opens on StackBlitz, ready to run and change:
 
 All of them glide the page, glide to same-page links (stopping below the sticky header) and draw the content between pixels while it
 moves. On every change each is built with its framework's own tool, from the package as it would be published, and driven in a
-browser (`npm run check:examples`).
+browser. To run that yourself, from the repository:
+
+```sh
+npm run check:examples
+```

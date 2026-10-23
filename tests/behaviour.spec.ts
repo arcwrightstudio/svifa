@@ -140,23 +140,35 @@ test.describe('boxes that scroll on their own', () => {
       <div id="picked" style="height: 200px"></div>
     </div>`
 
-  test('an inner box takes the wheel while it can move that way, then hands it back', async ({ page }) => {
+  test('an inner box glides the wheel itself while it can move that way, then hands it back', async ({ page }) => {
     await open(page, BOX)
     const result = await page.evaluate(() => {
       const w = window as any
       w.g = new w.Svifa({ autoRaf: false })
       const box = document.getElementById('box')!
+      w.frame(w.g)
       const down = w.wheel(box, 100)
+      const path: number[] = []
+      for (let i = 0; i < 200 && box.scrollTop < 100; i++) {
+        w.frame(w.g)
+        path.push(box.scrollTop)
+      }
+      w.frame(w.g, 60, 120)
+      const up = w.wheel(box, -100)
+      w.frame(w.g, 60, 200)
       const upAtTop = w.wheel(box, -100)
       box.scrollTop = box.scrollHeight
+      w.frame(w.g, 60, 2)
       const downAtEnd = w.wheel(box, 100)
-      return { down, upAtTop, downAtEnd }
+      return { down, glided: path.length > 5, box: path.at(-1), page: window.scrollY, up, upAtTop, downAtEnd, target: w.g.target }
     })
-    // the box can move down: the browser scrolls it; at its top, up goes to the page (and the page is at its top too: the browser's)
-    expect(result.down).toBe(false)
+    // the box can move down: it glides there itself, the page stays where it is
+    expect(result).toMatchObject({ down: true, glided: true, box: 100, page: 0, up: true })
+    // at its top, up goes on to the page, which is at its top too: the browser's
     expect(result.upAtTop).toBe(false)
     // at its end, down glides the page
     expect(result.downAtEnd).toBe(true)
+    expect(result.target).toBe(100)
   })
 
   test('overscroll-behavior: contain keeps the wheel in the box even at its end', async ({ page }) => {

@@ -37,10 +37,10 @@ const PROPS = {
   easing: Function as PropType<SmoothScrollProps['easing']>,
   wheel: flag,
   wheelSpeed: Number,
-  nested: flag,
+  nested: { type: [Boolean, String, Function] as PropType<SmoothScrollProps['nested']>, default: undefined },
   native: Function as PropType<SmoothScrollProps['native']>,
   chain: flag,
-  subpixel: { type: [String, Array, Function, Object] as PropType<SmoothScrollProps['subpixel']>, default: undefined },
+  subpixel: { type: [Boolean, String, Array, Function, Object] as PropType<SmoothScrollProps['subpixel']>, default: undefined },
   anchors: { type: [Boolean, Object] as PropType<SmoothScrollProps['anchors']>, default: undefined },
   snap: flag,
   reducedMotion: flag,
@@ -50,7 +50,7 @@ const PROPS = {
 /**
  * Smooth scrolling as a component. Render it once, near the root (in Nuxt, in `app.vue` or a layout); its props are Svifa's options.
  * Changing `lerp`, `duration`, `easing`, `wheel`, `wheelSpeed`, `nested`, `native`, `chain`, `anchors` or `snap` retunes the Svifa it
- * made; changing `scroller`, `axis`, `subpixel` (as a selector), `reducedMotion` or `autoRaf` makes it again. Anything inside it
+ * made; changing `scroller`, `axis`, `subpixel` (true, false or a selector), `reducedMotion` or `autoRaf` makes it again. Anything inside it
  * reaches the Svifa with `useSvifa`. It renders only what it holds.
  *
  * @example

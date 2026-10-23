@@ -86,10 +86,6 @@ p {
   margin: 1rem 0 0;
   color: var(--soft);
 }
-/* drawn between pixels while the page glides (Svifa's subpixel option) */
-.svifa-subpixel main > section {
-  will-change: translate;
-}
 /* a box with a Svifa of its own */
 .box {
   height: 12rem;

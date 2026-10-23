@@ -92,7 +92,7 @@ test('smoothScroll makes one Svifa that components inside reach, and takes it of
     const prevented = w.wheel(window, 200)
     return {
       same: shared === w.probe,
-      classes: document.documentElement.className,
+      classes: [...document.documentElement.classList].filter((name) => name !== 'svifa-subpixel').join(' '),
       prevented,
       lerp: w.probe.options.lerp,
     }

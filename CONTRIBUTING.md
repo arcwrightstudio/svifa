@@ -12,10 +12,16 @@ For a question, or to share a site that uses Svifa, start a [discussion](https:/
 
 ## Changing the code
 
-Development needs Node 22.18, 24.11, 26 or later.
+Development needs Node 22.18, 24.11, 26 or later. To set up, install the tools, then the browsers the tests run in (once):
 
 ```sh
-npm ci                   # the tools (and npx playwright install, once, for the browsers)
+npm ci
+npx playwright install
+```
+
+Each check, on its own:
+
+```sh
 npm run lint             # oxlint for defects, and Prettier for the code style (npm run format applies it)
 npm run typecheck        # the library, then the tests and the config files
 npm run build            # dist/: the ES module, the CommonJS file, the script builds, the framework entries, the types, the SBOM
@@ -27,8 +33,13 @@ npm run check:examples   # builds every example from the packed package with its
 npm run check:oldest     # each framework entry's tests on the oldest version of its framework that package.json supports
 ```
 
-`SVIFA_<NAME>_DIR=<a node_modules folder> npx playwright test tests/<name>.spec.ts` runs a framework entry's tests against another
-version of its framework (`SVIFA_REACT_DIR`, `SVIFA_VUE_DIR`, `SVIFA_SVELTE_DIR`, `SVIFA_SOLID_DIR` or `SVIFA_ANGULAR_DIR`);
+A framework entry's tests run against another version of its framework when its variable names a `node_modules` folder that holds
+it (`SVIFA_REACT_DIR`, `SVIFA_VUE_DIR`, `SVIFA_SVELTE_DIR`, `SVIFA_SOLID_DIR` or `SVIFA_ANGULAR_DIR`), for example:
+
+```sh
+SVIFA_VUE_DIR=../vue-3.3/node_modules npx playwright test tests/vue.spec.ts
+```
+
 `check:oldest` does this for the oldest version of each.
 
 ### When the checks run
@@ -48,15 +59,19 @@ place by the time since the last frame. Each move is written on the browser's ow
 drawn on the chosen elements. Anything else that moves the scroller (a key, the scroll bar, a script) takes over at once. The files:
 
 - `src/svifa.ts`: the `Svifa` class: options, input (wheel, keys, touch, anchors), the frame loop, the motion (a damped approach by
-  `lerp`, or a timed curve), what it reports (`scroll` events, one `scrollend` per glide, classes).
+  `lerp`, or a timed curve), what it reports (`scroll` events, one `scrollend` per glide, classes), and the Svifas it makes for the
+  scrolling boxes inside its scroller.
 - `src/scroller.ts`: the page or a scrolling element along one axis: reading and writing its position on the browser's pixel grid
   (device pixels, or whole CSS pixels in browsers that keep those, learned from the first move), its end, snapping, overflow.
 - `src/subpixel.ts`: draws the part of a pixel the browser cannot scroll by as a `translate` on the chosen elements, holding sticky
-  elements still while they are held.
+  elements still while they are held; gives each its layer for as long as Svifa runs, and chooses again when the page changes.
+- `src/pick.ts`: which elements Svifa draws between pixels when it chooses them itself: the scroller's top-level blocks, split
+  around anything a layer would change.
 - `src/target.ts`: what a `scrollTo` target names and the position it stands for (scroll-margin, scroll-padding, nested boxes).
 - `src/snap.ts`: snapping (`snap`): the places a scroller may rest, read from its CSS, and which of them a movement rests on. The
   browser has the last word: `src/svifa.ts` asks it where it would rest the scroller before each glide.
-- `src/wheel.ts`: a wheel event in pixels, and whether an element inside the scroller takes it itself.
+- `src/wheel.ts`: a wheel event in pixels, and whether an element inside the scroller takes it itself (the browser, or a box that
+  glides).
 - `src/types.ts`: the public types; their JSDoc is the reference editors show.
 - `src/react.ts`, `src/vue.ts`, `src/svelte.ts`, `src/solid.ts`, `src/angular.ts` and `astro/SmoothScroll.astro`: the framework
   entries, each importing the core by the package's own name (`tsconfig.json` maps it to `src/index.ts`), so a project holds one
@@ -98,17 +113,36 @@ too, and CI checks every file for them.
 - No dependencies. Anything a browser from the last few years lacks is detected and left to the browser, never polyfilled.
 - Every exported function, method and accessor states its types (`isolatedDeclarations`): the declarations are written from the
   source alone, so the published types are exactly what the code says.
-- esbuild runs an install script, approved by version in `allowScripts` in `package.json`. After updating esbuild, approve it again
-  with `npm install-scripts approve esbuild`.
+- esbuild runs an install script, approved by version in `allowScripts` in `package.json`. After updating esbuild, approve it
+  again:
+
+  ```sh
+  npm install-scripts approve esbuild
+  ```
 - The JSDoc in `src/`, `README.md` and `llms.txt` describe the same API and change with the code. A statement in any of them is
   something a test or a measurement shows.
 
 ### Signing off
 
-Every commit carries a `Signed-off-by:` line with its author's name and email, which `git commit -s` adds. It certifies the
-[Developer Certificate of Origin](https://developercertificate.org): that you wrote the change, or otherwise have the right to give
-it under the project's MIT license. CI checks every commit of a pull request for it. To sign off commits made without it, run
-`git commit --amend -s` for the last one, or `git rebase --signoff main` for all of them.
+Every commit carries a `Signed-off-by:` line with its author's name and email, which `-s` adds:
+
+```sh
+git commit -s
+```
+
+It certifies the [Developer Certificate of Origin](https://developercertificate.org): that you wrote the change, or otherwise have
+the right to give it under the project's MIT license. CI checks every commit of a pull request for it. To sign off the last commit
+made without it:
+
+```sh
+git commit --amend -s
+```
+
+Or every commit of the branch:
+
+```sh
+git rebase --signoff main
+```
 
 Open a pull request against `main` with one change in it, and say what it fixes and how you checked it. CI runs every check on the
 newest Node release and on the newest long-term support release.
