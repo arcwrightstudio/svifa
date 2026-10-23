@@ -53,6 +53,12 @@ Svifa follows [semantic versioning](https://semver.org).
   shimmered as it glided: the browser draws each scroll position on a whole device pixel, up to half of one off it, and Svifa drew
   the rest of the way from the scroll position, not from where the browser drew it. It now draws from there, and the glide ends
   where the browser draws the page at rest. The position Svifa reports is unchanged.
+- At a device scale of a part of a pixel, a glide drawn between pixels could report a position up to half a device pixel past
+  where it was sent, before the browser had shown which places it keeps (at 125%, 6.4 for a glide sent to 6). A glide already past
+  the place it then aims at is held there.
+- Drawn on whole pixels at a device scale of a part of a pixel, a glide could take its last pixel early (at 125%, a glide sent to 1
+  rested while its curve was at 0.42, since on the device grid both are 0.8). Until the browser shows which places it keeps, a glide
+  rests only once it is on its last pixel on both grids.
 - Drawn between pixels, a glide could go up to a pixel past the end of the page: the fraction drawn on the last block made the page
   that much longer for the browser. The scroller is now put on the whole pixel just before the place, and the content is only ever
   moved toward the start.
@@ -63,7 +69,7 @@ Svifa follows [semantic versioning](https://semver.org).
   keeps its name, and each framework entry imports the core from the file beside it.
 - React: a prop taken off `SmoothScroll` (left out of its props) now goes back to its default; it kept the value it had.
 - The README gave the size as under 8 kB minified and gzipped, which 1.1.0 already passed (8.6 kB). It now gives the size as
-  measured, and a test keeps it true.
+  measured, and a test keeps it true. It also compares Svifa with the most used smooth scroll libraries, as measured.
 
 ## 1.1.0
 

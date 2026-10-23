@@ -30,8 +30,10 @@ export class Scroller {
   /** A horizontal scroller in right-to-left content: the browser counts its position from 0 down to minus the limit. */
   readonly reversed: boolean
   private max = 0
-  // the browser keeps the scroller on whole CSS pixels rather than device pixels (learned from where it puts it)
+  // the browser keeps the scroller on whole CSS pixels rather than device pixels, or has kept a place between two whole CSS
+  // pixels as written so keeps device pixels (each learned from where it puts it)
   private coarse = false
+  private fine = false
   // the page's own inline scroll-behavior, put back on destroy when an old browser needed it overridden
   private restoreBehavior: string | null = null
   // the scroller's own inline scrollbar-gutter while Svifa holds a scrollbar's room (see holdGutter)
@@ -108,6 +110,16 @@ export class Scroller {
   }
 
   /**
+   * Whether `a` and `b` are the same place on the browser's grid. Zoomed to a part of a pixel, until the browser has shown which grid
+   * it keeps, they must be on both: device pixels and whole CSS pixels, so that a glide is never taken to be on its last pixel early
+   * in a browser that keeps whole CSS pixels.
+   */
+  samePlace(a: number, b: number): boolean {
+    if (this.restingPlace(a) !== this.restingPlace(b)) return false
+    return this.coarse || this.fine || Number.isInteger(placesPerPixel()) || Math.round(a) === Math.round(b)
+  }
+
+  /**
    * Where the browser draws the content with the scroller at `place`: browsers draw a scroll position on whole device pixels, so
    * zoomed to a part of a pixel (125%, 80%) a whole CSS pixel is drawn up to half a device pixel off it. Worked out as Chrome does,
    * in single precision and rounded half away from 0: at 90%, 305 pixels make 274.5 device pixels, not the 274.49999 of a double.
@@ -141,7 +153,7 @@ export class Scroller {
         // this once, written again on the grid just learned, so the move still lands on its place
         place = placeOf(Math.max(position, 0))
         this.write(place)
-      }
+      } else if (off <= slop(place) && Math.abs(place - Math.round(place)) > slop(place)) this.fine = true
     }
     this.short = this.position < place - slop(place)
     return learned

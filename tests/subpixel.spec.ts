@@ -508,6 +508,78 @@ for (const scale of [0.8, 0.9, 1.25, 1.5]) {
   })
 }
 
+// Before a glide's first move shows the browser's grid, the nearest device pixel to the goal can lie past it (at 125%, 6.4 for 6):
+// once the browser shows it keeps whole CSS pixels, a glide already past the place it then aims at is held there, so what it reports
+// never goes past where it was sent. These are the turns and frames the property tests found.
+test.describe('zoomed to 125%, before the browser has shown its grid', () => {
+  test.use({ deviceScaleFactor: 1.25 })
+  test('a glide never reports a place past its goal', async ({ page }) => {
+    await open(page)
+    const past = await page.evaluate(() => {
+      const w = window as any
+      const found: string[] = []
+      for (const [lerp, delta, steps] of [
+        [0.5373233962673998, 6, [36, 1, 1, 48, 48, 48, 48]],
+        [0.5148734114161081, 2, [1, 8, 1, 48, 48, 48]],
+      ] as [number, number, number[]][]) {
+        window.scrollTo({ top: 0, behavior: 'instant' })
+        const g = new w.Svifa({ autoRaf: false, lerp })
+        let clock = 1000
+        g.raf(clock)
+        w.wheel(window, delta)
+        for (const ms of steps) {
+          clock += ms
+          g.raf(clock)
+          if (g.scroll > delta + 1e-9) found.push(`${g.scroll} heading for ${delta}`)
+        }
+        while (g.isGliding) w.frame(g)
+        if (g.scroll !== delta) found.push(`rested at ${g.scroll}, sent to ${delta}`)
+        g.destroy()
+      }
+      return found
+    })
+    expect(past).toEqual([])
+  })
+
+  // On the device grid at 125%, 0.42 and 1 are the same place (0.8); on whole CSS pixels they are not. A glide on whole pixels rests
+  // only once it is on its last pixel on both grids, until the browser shows which one it keeps.
+  test('drawn on whole pixels, a glide is not taken to be on its last pixel early', async ({ page }) => {
+    await open(page)
+    const early = await page.evaluate(() => {
+      const w = window as any
+      const limit = document.documentElement.scrollHeight - innerHeight
+      const found: string[] = []
+      for (const [lerp, from, delta, frames] of [
+        [0.9643679362225734, 0.9795108695652174, -5, [22, 2, 8, 2, 1]],
+        [0.02, 0.0020108695652173913, -1, [4, 1]],
+        [0.02, 0, 1, [1]],
+      ] as [number, number, number, number[]][]) {
+        const start = Math.round(from * limit)
+        window.scrollTo({ top: start, behavior: 'instant' })
+        const g = new w.Svifa({ autoRaf: false, lerp, subpixel: false })
+        let clock = 1000
+        g.raf(clock)
+        w.wheel(window, delta)
+        const goal = g.target
+        // the glide's curve, closing in on the goal by lerp and never slower than 60 px a second
+        let curve = start
+        for (let count = 0; g.isGliding && count < 100000; count++) {
+          const ms = frames[count % frames.length]
+          clock += ms
+          g.raf(clock)
+          const least = (60 * ms) / 1000
+          const closer = goal + (curve - goal) * Math.exp((-lerp * 60 * ms) / 1000)
+          curve = curve < goal ? Math.max(closer, Math.min(goal, curve + least)) : Math.min(closer, Math.max(goal, curve - least))
+          if (!g.isGliding && Math.abs(curve - goal) > 0.5) found.push(`rested at ${g.scroll} with the curve at ${curve}`)
+        }
+        g.destroy()
+      }
+      return found
+    })
+    expect(early).toEqual([])
+  })
+})
+
 // The browser's own zoom is not a device scale: Chrome keeps the scroller on device pixels at every zoom (at 80% every 1.25 CSS
 // pixels). Chromium's full build takes a zoom level from its profile, as a person's Chrome keeps one.
 test.describe('zoomed by the browser', () => {

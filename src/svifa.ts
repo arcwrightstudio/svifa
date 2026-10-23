@@ -1020,7 +1020,7 @@ export class Svifa {
   // draw it on the same device pixel as its end.
   private arrived(track: Track, to: number) {
     if (this.settle !== undefined) return Math.abs(to - track.value) <= this.settle
-    return track.area.restingPlace(track.value) === track.area.restingPlace(to)
+    return track.area.samePlace(track.value, to)
   }
 
   // Where a glide drawn between pixels draws the content now. Zoomed to a part of a pixel, the browser draws a scroll position up to
@@ -1087,9 +1087,14 @@ export class Svifa {
       )
       this.followInside()
     }
-    // the browser turned out to keep whole CSS pixels: aim the glide under way at a place it can rest on
+    // the browser turned out to keep whole CSS pixels: aim the glide under way at a place it can rest on. Until now it was aimed at
+    // the nearest device pixel, which zoomed to a part of a pixel can lie past that place (at 125%, 6.4 for a glide sent to 6): a
+    // glide already past it is held there, so it is never reported past where it will rest
     for (const [i, track] of this.tracks.entries()) {
-      if (learned[i] && this.between && track.motion) track.motion.to = track.area.restingPlace(track.goal)
+      const motion = track.motion
+      if (!learned[i] || !this.between || !motion) continue
+      motion.to = track.area.restingPlace(track.goal)
+      if ((track.value - motion.to) * track.report.direction > 0) track.value = motion.to
     }
     return learned
   }

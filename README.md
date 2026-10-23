@@ -49,6 +49,37 @@ Every claim here is checked by the tests, which run in Chromium, Firefox and Web
 the motion was measured frame by frame on a 254 Hz screen. If a site already uses a smooth scroll library, switching is usually
 two lines: the import and the constructor.
 
+## How it compares
+
+Measured on 23 October 2026 with the current release of each library, each set up on the same page as its own documentation
+shows. The end of a glide was recorded on a 254 Hz screen at a scale of 100%: one wheel notch sent through Windows' own input,
+every frame the monitor showed captured, and the drawn position of a 1 px line read to a hundredth of a pixel, twice for each
+library and browser, giving the longer of the two. Chrome 155, Edge 155 and Firefox 158 are the browsers as installed; WebKit
+27.2 is Playwright's build of Safari's engine for Windows, not Safari. The other rows come from the same pages driven in Chromium,
+Firefox and WebKit. Sizes are each page's setup bundled and minified with esbuild, JavaScript and CSS gzipped (so Svifa's figure
+includes its CSS file and differs a little from its script build's).
+
+|                                                                                     | Svifa 1.2.0                               | Lenis 1.3.27                                                                  | Locomotive Scroll 5.0.1                 | GSAP ScrollSmoother 3.15.0                                       | Smooth Scrollbar 8.8.4                                          |
+| ----------------------------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------- |
+| Longest the page stands still near the end of a glide: Chrome, Edge, Firefox, WebKit | 12, 20, 20, 20 ms                         | 181, 181, 181, 122 ms                                                         | 181, 181, 177, 122 ms                   | 24, 24, 110, 16 ms                                               | 4, 8, 4, 20 ms, and the whole glide lasts 110 to 140 ms (425 ms in WebKit) |
+| Drawn between pixels (Chrome, Edge, WebKit)                                         | Yes                                       | No                                                                            | No                                      | Yes                                                              | No (yes with `renderByPixels: false`)                           |
+| The same glide at 60, 120 and 240 Hz                                                | Yes                                       | Yes                                                                           | Yes                                     | Yes                                                              | No: it rests after 467, 233 and 117 ms                          |
+| The browser's own scroll position                                                   | Kept                                      | Kept                                                                          | Kept                                    | It jumps ahead, and the content follows by a transform           | Stays at 0: it scrolls a container of its own                   |
+| `position: sticky`                                                                  | Works                                     | Works                                                                         | Works                                   | Does not stick                                                   | Does not stick                                                  |
+| Find in page shows the match                                                        | Yes                                       | Yes                                                                           | Yes                                     | No                                                               | No                                                              |
+| Scroll-driven animations follow the page (Chromium)                                 | Yes                                       | Yes                                                                           | Yes                                     | Up to 780 px behind                                              | Do not move                                                     |
+| The wheel over a scrolling box inside the page                                      | The box glides                            | The page scrolls; with `allowNestedScroll`, the box scrolls the browser's way | The page scrolls                        | The box scrolls the browser's way                                | The page scrolls                                                |
+| CSS scroll snapping, one wheel notch                                                | Glides to the next snap point             | Left to the browser, which pulls it back (snap points of its own in `lenis/snap`) | Left to the browser, which pulls it back | Snap points ignored                                              | Snap points ignored                                             |
+| Same-page links                                                                     | Glide, with an offset                     | Glide, with an offset                                                         | Glide, with an offset                   | Jump                                                             | The address changes, the page stays                             |
+| A reader who asks for reduced motion                                                | No glide                                  | No smoothing                                                                  | Glides                                  | Glides                                                           | Glides                                                          |
+| Space and Page Down                                                                 | The browser's own                         | The browser's own                                                             | The browser's own                       | The browser's own                                                | Its own (Space moves 200 px)                                    |
+| Markup it needs                                                                     | None                                      | None                                                                          | None                                    | Two wrapper elements around the page                             | A container of fixed height                                     |
+| Components                                                                          | React, Vue, Svelte, Solid, Angular, Astro | React, Vue, Nuxt                                                              | None                                    | None                                                             | None                                                            |
+| Size on a page, minified and gzipped                                                | 15.6 kB                                   | 5.7 kB                                                                        | 9.1 kB                                  | 50.0 kB                                                          | 25.1 kB                                                         |
+| Runtime dependencies                                                                | None                                      | None                                                                          | Lenis 1.3.17                            | None                                                             | core-js, tslib                                                  |
+| License                                                                             | MIT                                       | MIT                                                                           | MIT                                     | GSAP's own no-charge license                                     | MIT                                                             |
+| Latest release                                                                      | This one                                  | 15 October 2026                                                               | 15 January 2026                         | 13 April 2026                                                    | 5 June 2023                                                     |
+
 ## Try it
 
 Each example opens on StackBlitz, ready to run and change:
@@ -99,7 +130,7 @@ Each installs and imports it as published, Yarn's Plug'n'Play mode included.
 Or load the script build, which sets `window.Svifa`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.2.0/dist/svifa.global.min.js" integrity="sha384-n3L0pLa5h9B9j77pDhzCdgL6dXVbWK7DxrxGT54MXzXlBQjMkGbCTZIXJE8FWPw2" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.2.0/dist/svifa.global.min.js" integrity="sha384-ubKC7QrHDs2hQc3uHQh3MttHmejOU5d9mJBKVP2xadSr/Mi0pRe6wFKsRAlAQ2uC" crossorigin="anonymous"></script>
 ```
 
 Pin the exact version in the address, as here: the `integrity` hash then makes the browser refuse any file that differs from the
@@ -395,7 +426,7 @@ each page as it comes in. A script reaches the page's Svifa through the hidden e
 
 ```html
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.2.0/svifa.css" integrity="sha384-otF4Jeb3ig0lwx4TPg07EA4DX21Rv2bYdenWzivt0s9iF/itD6ESvFkAKjyNPwyE" crossorigin="anonymous" />
-<script src="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.2.0/dist/svifa.global.min.js" integrity="sha384-n3L0pLa5h9B9j77pDhzCdgL6dXVbWK7DxrxGT54MXzXlBQjMkGbCTZIXJE8FWPw2" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@arcwrightstudio/svifa@1.2.0/dist/svifa.global.min.js" integrity="sha384-ubKC7QrHDs2hQc3uHQh3MttHmejOU5d9mJBKVP2xadSr/Mi0pRe6wFKsRAlAQ2uC" crossorigin="anonymous"></script>
 <script>
   const svifa = new Svifa()
 </script>
