@@ -39,13 +39,16 @@ export interface SvifaOptions {
 
   /**
    * How quickly a glide closes in on where it is going, the same at any refresh rate: at 0.1, about a tenth of the remaining distance
-   * every sixtieth of a second. Lower glides longer and softer; higher follows the wheel more closely (at most 1).
+   * every sixtieth of a second. Drawn on whole pixels (with `subpixel: false`, in Firefox, or where Svifa cannot draw between them) it
+   * never moves slower than 60 px a second, so its last pixels never creep. Lower glides longer and softer; higher follows the wheel
+   * more closely (at most 1).
    * @default 0.1
    */
   lerp?: number
 
   /**
-   * Glide for a set time instead, in seconds, along `easing`. When given, wheel glides and `scrollTo` use it in place of `lerp`.
+   * Glide for a set time instead, in seconds, along `easing`. When given, wheel glides and `scrollTo` use it in place of `lerp`. Drawn
+   * on whole pixels it never moves slower than 60 px a second, so with an easing that starts or ends slowly it arrives a little early.
    */
   duration?: number
 
@@ -68,11 +71,15 @@ export interface SvifaOptions {
   wheelSpeed?: number
 
   /**
-   * Leave a scrolling box inside the scroller (a dropdown, a code sample, a chat log) to scroll on its own for as long as it can move
-   * the way the wheel turns, and while its `overscroll-behavior` keeps the wheel to itself.
+   * How the wheel moves a scrolling box inside the scroller (a dropdown, a code sample, a chat log) while the box can move the way the
+   * wheel turns. `true`: the box glides as the scroller does, with the same feel, drawn between pixels. `'native'`: the browser scrolls
+   * it, as it would without Svifa. `false`: the scroller glides instead, even over the box. A function decides for each box: given the
+   * box, it returns one of those, or options for that box alone (`{ lerp: 0.2 }`). A box marked `data-svifa-native` (or picked by
+   * `native`) is always left to the browser, and so is a box with a Svifa of its own (that one decides), a form control and editable
+   * text. At its end, the wheel goes on to whatever is around the box, unless the box's `overscroll-behavior` keeps it inside.
    * @default true
    */
-  nested?: boolean
+  nested?: boolean | 'native' | ((box: Element) => boolean | 'native' | TunableOptions)
 
   /**
    * Elements whose wheel turns are always left to the browser: return `true` for them. Elements with a `data-svifa-native` attribute,
@@ -88,18 +95,28 @@ export interface SvifaOptions {
   chain?: boolean
 
   /**
-   * The elements that travel with the scrolled content, to be drawn at its exact position, between whole pixels, while it glides: a
-   * CSS selector, a list of elements, or a function that returns them (asked again whenever the page's elements change).
+   * Draw the scrolled content between whole pixels while it glides. A browser draws a scrolled page only on whole pixels, so the slow
+   * end of a glide would show as one-pixel hops; Svifa scrolls to the nearest whole pixel and moves the content by the part of a pixel
+   * left over, which the GPU draws in between. Each element it moves has a layer of its own for as long as Svifa runs (Svifa sets
+   * `will-change: translate` on it), which also makes the element a stacking context and the containing block of any fixed element
+   * inside it.
    *
-   * A browser draws a scrolled page only on whole pixels, so a slow glide would show as one-pixel hops. Svifa scrolls to the nearest
-   * whole pixel and moves these elements by the part of a pixel left over, which the GPU draws in between. Give each of them
-   * `will-change: translate` in your CSS so the GPU draws them from the start (scope the rule under `.svifa-subpixel`). List the
-   * blocks that scroll with the content (the top-level sections and the footer), never an element with `position: fixed` or an
-   * ancestor of one, and every sticky element inside a listed element: a sticky element is moved only while it travels with the page,
-   * never while it is held in place (Svifa warns once in the console about one it finds missing). An element's own `translate` is
-   * replaced while the content glides and put back when it rests.
+   * Left on, Svifa chooses the elements: the blocks that scroll with the content (the scroller's children), split around any fixed
+   * element and anything else a layer would change, and the sticky elements inside them. Where a layer would change what is drawn
+   * over what and cannot be split around (a fixed or sticky element with no z-index, with content after it), it draws on whole pixels
+   * and says why in the console. An element marked `data-svifa-subpixel="off"`, and everything inside it, is left on whole pixels.
+   *
+   * Or name the elements: a CSS selector, a list of elements, or a function that returns them (asked again whenever the page's
+   * elements change). List the blocks that scroll with the content and every sticky element inside them (Svifa warns once in the
+   * console about one it finds missing), never an element with `position: fixed` or an ancestor of one. `false` draws on whole pixels:
+   * a glide then never moves slower than 60 px a second, so its last pixels never creep.
+   *
+   * Firefox, at a screen scale of 100%, draws on whole pixels whatever it is asked, so there Svifa chooses none, nor on a device with
+   * only a touch screen, where nothing glides under a finger. An element's own `translate` is replaced while the content glides and
+   * put back when it rests. In Chrome and Edge on Windows, text in a layer is smoothed in greyscale.
+   * @default true
    */
-  subpixel?: string | Iterable<Element> | (() => Iterable<Element>)
+  subpixel?: boolean | string | Iterable<Element> | (() => Iterable<Element>)
 
   /**
    * Glide to same-page links (`href="#id"`, `"#"` or `"#top"`) when they are clicked, in place of the browser's jump. The link still

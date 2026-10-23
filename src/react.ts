@@ -28,7 +28,7 @@ const SvifaContext = createContext<Svifa | null>(null)
 /**
  * Smooth scrolling as a component. Render it once, near the root (in Next.js, in the root layout); its props are Svifa's options.
  * Changing `lerp`, `duration`, `easing`, `wheel`, `wheelSpeed`, `nested`, `native`, `chain`, `anchors` or `snap` retunes the Svifa it
- * made, and one taken off goes back to its default; changing `scroller`, `axis`, `subpixel` (as a selector), `reducedMotion` or
+ * made, and one taken off goes back to its default; changing `scroller`, `axis`, `subpixel` (true, false or a selector), `reducedMotion` or
  * `autoRaf` makes it again. Anything rendered inside it
  * reaches the Svifa with `useSvifa`.
  *

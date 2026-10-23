@@ -195,15 +195,19 @@ test.describe('both ways', () => {
       w.wheel(box, 333.3, { deltaX: 211.7 })
       w.frame(g)
       const drawn = content.style.translate.split(' ')
-      let worst = 0
+      let ahead = 0
+      let behind = 0
       while (g.isGliding) {
         w.frame(g)
-        worst = Math.max(worst, Math.abs(box.scrollLeft - g.x.scroll), Math.abs(box.scrollTop - g.y.scroll))
+        ahead = Math.max(ahead, box.scrollLeft - g.x.scroll, box.scrollTop - g.y.scroll)
+        behind = Math.max(behind, g.x.scroll - box.scrollLeft, g.y.scroll - box.scrollTop)
       }
-      return { both: drawn.length === 2 && drawn.every((part) => part !== '0px'), worst, rest: content.style.translate }
+      return { both: drawn.length === 2 && drawn.every((part) => part !== '0px'), ahead, behind, rest: content.style.translate }
     })
     expect(result.both).toBe(true)
-    expect(result.worst).toBeLessThanOrEqual(0.5 + 1e-6)
+    // the scroller is put at or before the place on each axis, and the rest (less than a pixel) is drawn
+    expect(result.ahead).toBeLessThanOrEqual(1e-6)
+    expect(result.behind).toBeLessThan(1)
     expect(result.rest).toBe('')
   })
 })

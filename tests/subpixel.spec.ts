@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Arcwright Studio
 
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { expect, test } from './fixtures'
 import { open } from './setup'
 
@@ -11,7 +13,8 @@ const PAGE = `
     </section>
     <section class="move" id="two" style="height: 8000px"></section>
   </main>`
-const STYLE = '.move, .stick { will-change: translate; }'
+// no CSS of its own: Svifa gives each element its layer
+const STYLE = ''
 
 // the vertical translate an element carries, in CSS pixels (0 when it has none)
 const SHIFT = `(element) => { const t = element.style.translate; return t ? Number.parseFloat(t.split(' ')[1]) : 0 }`
@@ -240,23 +243,25 @@ test('draws a sticky element exactly in every frame as it reaches its offset, ev
 })
 
 test.describe('the browser’s own grid', () => {
-  test('never leaves more than half a pixel to draw, in a browser that cuts positions down as in one that rounds them', async ({
-    page,
-  }) => {
+  test('never puts the scroller past where the content is drawn, and leaves less than a pixel to draw', async ({ page }) => {
     await open(page, PAGE, STYLE)
-    const worst = await page.evaluate(() => {
+    const result = await page.evaluate(() => {
       const w = window as any
       const g = new w.Svifa({ autoRaf: false, subpixel: '.move' })
       w.frame(g)
       w.wheel(window, 263.9)
-      let worst = 0
+      let ahead = 0
+      let behind = 0
       while (g.isGliding) {
         w.frame(g, 144)
-        worst = Math.max(worst, Math.abs(window.scrollY - g.scroll))
+        ahead = Math.max(ahead, window.scrollY - g.scroll)
+        behind = Math.max(behind, g.scroll - window.scrollY)
       }
-      return worst
+      return { ahead, behind }
     })
-    expect(worst).toBeLessThanOrEqual(0.5 + 1e-6)
+    // the content is only ever moved toward the start (moved toward its end it would make the page longer)
+    expect(result.ahead).toBeLessThanOrEqual(1e-6)
+    expect(result.behind).toBeLessThan(1)
   })
 
   test('without drawing between pixels, rests on the nearest pixel to where it was sent', async ({ page }) => {
@@ -288,13 +293,14 @@ test.describe('the browser’s own grid', () => {
         w.frame(g)
         g.scrollTo(200.3)
         let last = 0
+        // at 1000 Hz a frame's share of the least pace (60 px a second) is 0.06 px, so a jump onto the grid at the end would show
         while (g.isGliding) {
           last = window.scrollY - shift()
-          w.frame(g, 120)
+          w.frame(g, 1000)
         }
         return { last, rest: window.scrollY, value: g.scroll, left: one.style.translate }
       })
-      expect(Math.abs(result.last - result.rest)).toBeLessThan(0.02)
+      expect(Math.abs(result.last - result.rest)).toBeLessThan(0.07)
       expect(result.value).toBe(result.rest)
       expect(result.left).toBe('')
     })
@@ -314,19 +320,22 @@ test.describe('the browser’s own grid', () => {
           [limit - 1, -1],
         ].map(([start, delta]) => {
           window.scrollTo({ top: start, behavior: 'instant' })
-          const g = new w.Svifa({ autoRaf: false })
+          // drawn on whole pixels: where the scroller is, is where the content is drawn
+          const g = new w.Svifa({ autoRaf: false, subpixel: false })
           w.frame(g)
           w.wheel(window, delta)
           let step = 0
           let drawn = 0
+          // at 240 Hz a frame's share of the least pace is a quarter of a pixel, well under the step a jump would make
           while (g.isGliding) {
             const before = g.scroll
-            w.frame(g)
+            w.frame(g, 240)
             step = Math.max(step, Math.abs(g.scroll - before))
             drawn = Math.max(drawn, Math.abs(window.scrollY - g.scroll))
           }
-          // arriving on a whole pixel settles the last half of one at once, with the frame's own share of the curve
-          const run = { aimed: start + delta, rest: g.scroll, y: window.scrollY, smooth: step < 0.6, drawn: drawn <= 0.5 }
+          // arriving on a whole pixel settles the last half of one at once, with the frame's own share of the curve or of the least
+          // pace (a quarter of a pixel at 240 Hz), whichever is more
+          const run = { aimed: start + delta, rest: g.scroll, y: window.scrollY, smooth: step <= 0.75 + 1e-9, drawn: drawn <= 0.5 }
           g.destroy()
           return run
         })
@@ -338,7 +347,8 @@ test.describe('the browser’s own grid', () => {
       await open(page)
       const worst = await page.evaluate(() => {
         const w = window as any
-        const g = new w.Svifa({ autoRaf: false })
+        // drawn on whole pixels: where the scroller is, is where the content is drawn
+        const g = new w.Svifa({ autoRaf: false, subpixel: false })
         w.frame(g)
         w.wheel(window, 7)
         let worst = 0
@@ -399,7 +409,7 @@ test.describe('the browser’s own grid', () => {
           [0.1, 16, 5],
         ]) {
           window.scrollTo({ top: 300, behavior: 'instant' })
-          const g = new w.Svifa({ autoRaf: false, lerp })
+          const g = new w.Svifa({ autoRaf: false, lerp, subpixel: false })
           let clock = 1000
           g.raf(clock)
           w.wheel(window, delta)
@@ -416,6 +426,188 @@ test.describe('the browser’s own grid', () => {
       expect(late).toEqual([])
     })
   })
+})
+
+// Zoomed to a part of a pixel, a browser keeps the scroller on a grid of whole CSS pixels (a device scale, as Playwright sets it) or of
+// device pixels (Chrome at the browser's own zoom, Ctrl and minus), and draws each place on a whole device pixel, up to half of one
+// off it (Chrome works it out in single precision and rounds half up). Drawn between pixels, the content is drawn from where the
+// browser draws the scroller: the place it is drawn at moves on with the glide and never back, stays within half a device pixel of
+// the glide's place (which is what Svifa reports), and ends where the browser draws the scroller at rest, with nothing left to draw.
+// Whole turns, so on whole CSS pixels each glide rests where it was sent; on device pixels, on the one nearest.
+function zoomedGlides({ shiftSource, device }: { shiftSource: string; device: boolean }) {
+  const w = window as any
+  const shift = new Function(`return ${shiftSource}`)() as (element: HTMLElement) => number
+  const one = document.getElementById('one')!
+  const limit = document.documentElement.scrollHeight - innerHeight
+  const ratio = devicePixelRatio
+  const drawnAt = (place: number) => Math.round(Math.fround(place * ratio)) / ratio
+  const runs: Record<string, unknown>[] = []
+  for (const [start, delta, hz] of [
+    [0, 137, 240],
+    [301, 23, 1000],
+    [302, 61, 240],
+    [903, -61, 1000],
+    [limit - 3, 9, 240],
+  ]) {
+    window.scrollTo({ top: start, behavior: 'instant' })
+    const g = new w.Svifa({ autoRaf: false, subpixel: '.move' })
+    w.frame(g)
+    w.wheel(window, delta)
+    const goal = g.target
+    const rest = device ? Math.min(Math.round(goal * ratio), Math.floor(limit * ratio)) / ratio : goal
+    const way = Math.sign(goal - window.scrollY)
+    let drawn = drawnAt(window.scrollY)
+    let back = 0
+    let off = 0
+    let toward = 0
+    let reported = 0
+    let step = 0
+    while (g.isGliding) {
+      const before = g.scroll
+      w.frame(g, hz)
+      if (!g.isGliding) break
+      const now = drawnAt(window.scrollY) - shift(one)
+      back = Math.max(back, (drawn - now) * way)
+      off = Math.max(off, Math.abs(now - g.scroll))
+      toward = Math.max(toward, shift(one))
+      if (!(g.scroll >= 0 && g.scroll <= limit) || (g.scroll - before) * way < -1e-9) reported++
+      step = Math.abs(now - drawn)
+      drawn = now
+    }
+    runs.push({
+      start,
+      delta,
+      back: back <= 1e-6,
+      off: off <= 0.5 / ratio + 1e-6,
+      toward: toward <= 1e-6,
+      reported,
+      // read back in single precision by some browsers, and the device pixel ratio is single precision too
+      rest: g.scroll === window.scrollY && Math.abs(window.scrollY - rest) < 1e-3,
+      // the last move, onto where the browser draws it at rest, is no bigger than the glide's own last step (in Firefox the least
+      // pace, a quarter of a pixel at 240 Hz) or a tiny fraction; Firefox keeps a translate to a sixtieth of a CSS pixel
+      landed: Math.abs(drawnAt(window.scrollY) - drawn) <= Math.max(step, 0.07) + 1 / 60,
+      left: one.style.translate,
+    })
+    g.destroy()
+  }
+  return runs
+}
+
+const ZOOMED = { back: true, off: true, toward: true, reported: 0, rest: true, landed: true, left: '' }
+
+for (const scale of [0.8, 0.9, 1.25, 1.5]) {
+  test.describe(`zoomed to ${scale * 100}%`, () => {
+    test.use({ deviceScaleFactor: scale })
+    test('the content is drawn moving on with the glide from where the browser draws the scroller, and lands where it rests', async ({
+      page,
+    }) => {
+      await open(page, PAGE, STYLE)
+      const runs = await page.evaluate(zoomedGlides, { shiftSource: SHIFT, device: false })
+      for (const run of runs) expect(run).toEqual({ start: run.start, delta: run.delta, ...ZOOMED })
+    })
+  })
+}
+
+// Before a glide's first move shows the browser's grid, the nearest device pixel to the goal can lie past it (at 125%, 6.4 for 6):
+// once the browser shows it keeps whole CSS pixels, a glide already past the place it then aims at is held there, so what it reports
+// never goes past where it was sent. These are the turns and frames the property tests found.
+test.describe('zoomed to 125%, before the browser has shown its grid', () => {
+  test.use({ deviceScaleFactor: 1.25 })
+  test('a glide never reports a place past its goal', async ({ page }) => {
+    await open(page)
+    const past = await page.evaluate(() => {
+      const w = window as any
+      const found: string[] = []
+      for (const [lerp, delta, steps] of [
+        [0.5373233962673998, 6, [36, 1, 1, 48, 48, 48, 48]],
+        [0.5148734114161081, 2, [1, 8, 1, 48, 48, 48]],
+      ] as [number, number, number[]][]) {
+        window.scrollTo({ top: 0, behavior: 'instant' })
+        const g = new w.Svifa({ autoRaf: false, lerp })
+        let clock = 1000
+        g.raf(clock)
+        w.wheel(window, delta)
+        for (const ms of steps) {
+          clock += ms
+          g.raf(clock)
+          if (g.scroll > delta + 1e-9) found.push(`${g.scroll} heading for ${delta}`)
+        }
+        while (g.isGliding) w.frame(g)
+        if (g.scroll !== delta) found.push(`rested at ${g.scroll}, sent to ${delta}`)
+        g.destroy()
+      }
+      return found
+    })
+    expect(past).toEqual([])
+  })
+
+  // On the device grid at 125%, 0.42 and 1 are the same place (0.8); on whole CSS pixels they are not. A glide on whole pixels rests
+  // only once it is on its last pixel on both grids, until the browser shows which one it keeps.
+  test('drawn on whole pixels, a glide is not taken to be on its last pixel early', async ({ page }) => {
+    await open(page)
+    const early = await page.evaluate(() => {
+      const w = window as any
+      const limit = document.documentElement.scrollHeight - innerHeight
+      const found: string[] = []
+      for (const [lerp, from, delta, frames] of [
+        [0.9643679362225734, 0.9795108695652174, -5, [22, 2, 8, 2, 1]],
+        [0.02, 0.0020108695652173913, -1, [4, 1]],
+        [0.02, 0, 1, [1]],
+      ] as [number, number, number, number[]][]) {
+        const start = Math.round(from * limit)
+        window.scrollTo({ top: start, behavior: 'instant' })
+        const g = new w.Svifa({ autoRaf: false, lerp, subpixel: false })
+        let clock = 1000
+        g.raf(clock)
+        w.wheel(window, delta)
+        const goal = g.target
+        // the glide's curve, closing in on the goal by lerp and never slower than 60 px a second
+        let curve = start
+        for (let count = 0; g.isGliding && count < 100000; count++) {
+          const ms = frames[count % frames.length]
+          clock += ms
+          g.raf(clock)
+          const least = (60 * ms) / 1000
+          const closer = goal + (curve - goal) * Math.exp((-lerp * 60 * ms) / 1000)
+          curve = curve < goal ? Math.max(closer, Math.min(goal, curve + least)) : Math.min(closer, Math.max(goal, curve - least))
+          if (!g.isGliding && Math.abs(curve - goal) > 0.5) found.push(`rested at ${g.scroll} with the curve at ${curve}`)
+        }
+        g.destroy()
+      }
+      return found
+    })
+    expect(early).toEqual([])
+  })
+})
+
+// The browser's own zoom is not a device scale: Chrome keeps the scroller on device pixels at every zoom (at 80% every 1.25 CSS
+// pixels). Chromium's full build takes a zoom level from its profile, as a person's Chrome keeps one.
+test.describe('zoomed by the browser', () => {
+  for (const zoom of [0.8, 1.25]) {
+    test(
+      `at ${zoom * 100}% the content is drawn moving on with the glide, from device pixels, and lands where it rests`,
+      { tag: '@chromium-only' },
+      async ({ playwright }, testInfo) => {
+        const profile = testInfo.outputPath('profile')
+        mkdirSync(join(profile, 'Default'), { recursive: true })
+        const level = Math.log(zoom) / Math.log(1.2)
+        writeFileSync(join(profile, 'Default', 'Preferences'), JSON.stringify({ partition: { default_zoom_level: { x: level } } }))
+        const context = await playwright.chromium.launchPersistentContext(profile, {
+          channel: 'chromium',
+          viewport: { width: 1280, height: 800 },
+        })
+        try {
+          const page = context.pages()[0] ?? (await context.newPage())
+          await open(page, PAGE, STYLE)
+          expect(await page.evaluate(() => devicePixelRatio)).toBeCloseTo(zoom, 5)
+          const runs = await page.evaluate(zoomedGlides, { shiftSource: SHIFT, device: true })
+          for (const run of runs) expect(run).toEqual({ start: run.start, delta: run.delta, ...ZOOMED })
+        } finally {
+          await context.close()
+        }
+      }
+    )
+  }
 })
 
 test('holds an element stuck to the bottom still while the content glides past it', async ({ page }) => {
@@ -535,4 +727,29 @@ test('is left off for a horizontal scroller in right-to-left content', async ({ 
     return row.className
   })
   expect(cls).toBe('svifa')
+})
+
+test('drawn between pixels a glide slows to a stop along its curve; in Firefox, which draws whole pixels, it keeps the least pace', async ({
+  page,
+  browserName,
+}) => {
+  await open(page, PAGE, STYLE)
+  const slowest = await page.evaluate(() => {
+    const w = window as any
+    const g = new w.Svifa({ autoRaf: false, subpixel: '.move' })
+    w.frame(g)
+    w.wheel(window, 100)
+    // the least a frame moved while the glide was under way, at 60 Hz
+    let least = Number.POSITIVE_INFINITY
+    while (g.isGliding) {
+      const before = g.scroll
+      w.frame(g, 60)
+      if (g.isGliding) least = Math.min(least, Math.abs(g.scroll - before))
+    }
+    g.destroy()
+    return least
+  })
+  // the least pace is a pixel a frame at 60 Hz; along the curve, the last frames move a small part of one
+  if (browserName === 'firefox') expect(slowest).toBeGreaterThanOrEqual(1 - 1e-9)
+  else expect(slowest).toBeLessThan(0.1)
 })

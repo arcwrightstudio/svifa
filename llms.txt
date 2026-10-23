@@ -3,8 +3,10 @@
 > A smooth scroll library for the browser: the mouse wheel and the trackpad scroll smoothly, on the whole page or inside any
 > scrolling element. Plain JavaScript with no dependencies; works with any framework or none. The keyboard, the scroll bar, touch
 > and find in page stay the browser's own. Svifa moves the real scroll position, so sticky elements, IntersectionObserver and
-> scroll events keep working. With the subpixel option it also removes the jitter at the end of a smooth scroll, by drawing the
-> fraction of a pixel the browser cannot scroll by on the GPU. The same timing at any refresh rate.
+> scroll events keep working. The end of a glide is drawn between pixels on the GPU (Chrome, Edge, WebKit), with no CSS: Svifa
+> gives the blocks that scroll a layer of their own. Drawn on whole pixels (in Firefox, or with subpixel: false) a glide never moves
+> slower than 60 px a second, so its end never stands still and hops. Scrolling boxes inside glide too. The same timing at any
+> refresh rate.
 
 This file is the complete reference for writing code that uses Svifa. The README has the same with more explanation.
 
@@ -56,7 +58,7 @@ useSvifa((g) => setProgress(g.progress))             // called on every scroll
 
 SmoothScroll props are the options below; `scroller` may also be a ref. Changing lerp, duration, easing, wheel, wheelSpeed, nested,
 native, chain, anchors or snap retunes the running Svifa (a prop taken off goes back to its default); changing scroller, axis,
-subpixel (a selector), reducedMotion or autoRaf makes it again. Works under StrictMode.
+subpixel (true, false or a selector), reducedMotion or autoRaf makes it again. Works under StrictMode.
 
 ## Vue and Nuxt (@arcwrightstudio/svifa/vue, needs vue 3.3 or later)
 
@@ -123,7 +125,8 @@ import SmoothScroll from '@arcwrightstudio/svifa/astro'
 <SmoothScroll lerp={0.08} anchors={{ offset: -80 }} />   <!-- once, in a layout; it brings the stylesheet -->
 ```
 
-Props are the options that can be written in markup (not easing or native); scroller and subpixel are CSS selectors. With view
+Props are the options that can be written in markup (not easing or native); scroller is a CSS selector, subpixel true, false or
+a selector, nested true, false or 'native'. With view
 transitions (<ClientRouter />) a Svifa is made for each page. A script reaches it as document.querySelector('svifa-scroll').svifa.
 
 ## Without a component
@@ -137,15 +140,15 @@ onMount, afterNextRender or a script tag, then `svifa.destroy()`.
 | --- | --- | --- |
 | scroller | window | The page, or a scrolling element (overflow auto or scroll). |
 | axis | 'vertical' | 'horizontal' for a sideways scroller (right-to-left content included); it takes the wheel's up and down too. 'both' glides up and down and sideways at once (each axis its own part of the wheel; Shift with a mouse wheel moves it sideways). |
-| lerp | 0.1 | Smoothness, the same at any refresh rate: about this share of the remaining distance every 1/60 s. 0.16 snappy, 0.07 soft, 0.05 slow, 0.03 very slow. At most 1. |
-| duration | none | Glide for a set time in seconds instead, along easing. |
+| lerp | 0.1 | Smoothness, the same at any refresh rate: about this share of the remaining distance every 1/60 s (on whole pixels never slower than 60 px/s). 0.16 snappy, 0.07 soft, 0.05 slow, 0.03 very slow. At most 1. |
+| duration | none | Glide for a set time in seconds instead, along easing; on whole pixels never slower than 60 px/s, so a slow-ending easing arrives a little early there. |
 | easing | ease-out | (t: 0..1) => 0..1, for a timed glide. |
 | wheel | true | false leaves the wheel to the browser; scrollTo still glides. |
 | wheelSpeed | 1 | Multiplies every wheel and trackpad movement. |
-| nested | true | A scrolling box inside keeps the wheel while it can move that way, or while its overscroll-behavior keeps it. |
+| nested | true | A scrolling box inside glides the wheel itself while it can move that way (same feel, drawn between pixels), then hands it on. 'native' leaves boxes to the browser, false glides the scroller over them, (box) => true / false / 'native' / options decides per box. |
 | native | none | (element) => boolean: elements whose wheel turns are left to the browser. data-svifa-native on an element does the same. |
 | chain | true | For an element scroller: at its start or end the wheel goes on to the page. |
-| subpixel | none | A selector, a list or a function: elements drawn between whole pixels while the content glides (see below). |
+| subpixel | true | Draw between whole pixels while gliding, on blocks Svifa chooses; or a selector, a list or a function naming them; false for whole pixels (see below). |
 | anchors | false | true, or scrollTo options: glide to same-page links (#id, #, #top). Adds a history entry, sends hashchange, moves keyboard focus for a link pressed from the keyboard. |
 | snap | false | Glide to the snap points the page sets in CSS (scroll-snap-type, scroll-snap-align). The wheel goes as far as it would and rests on the nearest point; mandatory: one notch or swipe moves one point; proximity: rests on a point only within a third of the visible area. scrollTo and same-page links rest on the nearest point. scroll-padding, scroll-margin, scroll-snap-stop and areas longer than the visible area are honoured; every rest is where the browser itself would rest. |
 | reducedMotion | true | Follow prefers-reduced-motion. |
@@ -181,20 +184,23 @@ TunableOptions, SvifaTarget, Point, AxisState, Easing, Axis, SvifaEvent, Resolve
 ## Events and classes
 
 The browser's scroll events fire as usual. One scrollend per glide that moved the scroller (detail.svifa === true), on document for
-the page. Classes on the scroller's element: svifa, svifa-gliding, svifa-stopped, svifa-subpixel.
+the page. Classes on the scroller's element: svifa, svifa-gliding, svifa-stopped, svifa-subpixel. data-svifa-native on an element
+leaves its wheel to the browser; data-svifa-subpixel="off" leaves it on whole pixels (on html or body, the whole page).
 
 ## Drawing between pixels (subpixel)
+
+On by default with no CSS. Svifa sets will-change: translate on the scroller's top-level blocks (and sticky elements inside them)
+for as long as it runs, splits around a block holding a fixed element or a z-index that reaches past it (a menu), and draws on
+whole pixels, with one console warning, where a fixed or sticky element with no z-index is followed by content (fix: give it a
+z-index). Each layer is a stacking context; in Chrome and Edge on Windows its text uses greyscale antialiasing. Not in Firefox, on
+touch-only devices, while reduced motion is on, or where the browser lacks the translate property. To name the blocks instead:
 
 ```js
 new Svifa({ subpixel: 'main > section, footer' })
 ```
-```css
-.svifa-subpixel main > section, .svifa-subpixel footer { will-change: translate; }
-```
 
-List the blocks that scroll with the content, and every sticky element inside them (with the same CSS). Never list a
-position: fixed element or an ancestor of one. Each listed element becomes a stacking context. In Chrome and Edge on Windows, text in
-a listed element uses greyscale antialiasing. Off while reduced motion is on, and where the browser lacks the translate property.
+Name blocks that together cover what scrolls, and every sticky element inside them. Never a position: fixed element or an ancestor
+of one.
 
 ## Yarn Plug'n'Play
 

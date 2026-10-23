@@ -68,7 +68,11 @@ test('provideSmoothScroll makes one Svifa that injectSvifa reaches, and takes it
   const first = await page.evaluate(() => {
     const w = window as any
     const prevented = w.wheel(window, 200)
-    return { classes: document.documentElement.className, prevented, lerp: w.probe.options.lerp }
+    return {
+      classes: [...document.documentElement.classList].filter((name) => name !== 'svifa-subpixel').join(' '),
+      prevented,
+      lerp: w.probe.options.lerp,
+    }
   })
   expect(first).toEqual({ classes: 'svifa svifa-gliding', prevented: true, lerp: 0.12 })
   await glide(page)

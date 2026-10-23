@@ -67,7 +67,11 @@ test('SmoothScroll makes one Svifa, retunes it, makes it again when what it scro
     const w = window as any
     w.made = w.probe
     const prevented = w.wheel(window, 200)
-    return { classes: document.documentElement.className, prevented, lerp: w.made.options.lerp }
+    return {
+      classes: [...document.documentElement.classList].filter((name) => name !== 'svifa-subpixel').join(' '),
+      prevented,
+      lerp: w.made.options.lerp,
+    }
   })
   expect(first).toEqual({ classes: 'svifa svifa-gliding', prevented: true, lerp: 0.1 })
   await glide(page)

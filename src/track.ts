@@ -34,6 +34,13 @@ export class Track {
   spots: Spot[] = []
   // where the browser rests the scroller for each place it was asked about during this movement
   rests: Map<number, number> = new Map()
+  // drawn between pixels: how far off the glide's place the content was drawn on the last frame, and since the glide's end last
+  // changed, where that began and how far off it was then (see Svifa's drawnPlace)
+  lastValue = 0
+  lastOffset = 0
+  blendTo: number = Number.NaN
+  blendFrom = 0
+  blendOffset = 0
 
   constructor(
     readonly area: Scroller,

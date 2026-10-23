@@ -11,6 +11,6 @@ export const appConfig: ApplicationConfig = {
     // the browser takes over the page the server rendered, rather than drawing it again
     provideClientHydration(),
     // the page glides, and so do same-page links, stopping below the sticky header
-    provideSmoothScroll({ subpixel: 'main > section', anchors: { offset: -56 } }),
+    provideSmoothScroll({ anchors: { offset: -56 } }),
   ],
 }

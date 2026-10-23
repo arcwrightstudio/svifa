@@ -8,7 +8,7 @@ import ReadingProgress from './ReadingProgress.vue'
 
 <template>
   <!-- the page glides, and so do same-page links, stopping below the sticky header -->
-  <SmoothScroll subpixel="main > section" :anchors="{ offset: -56 }">
+  <SmoothScroll :anchors="{ offset: -56 }">
     <header>
       <nav>
         <a href="#one">One</a>

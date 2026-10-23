@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Arcwright Studio
 
-import { Scroller } from './scroller'
+import { placesPerPixel, Scroller } from './scroller'
 import { ahead, inReach, nearest, placesAhead, same, snapTypeOf, spotsOf, stopOn, type SnapType } from './snap'
-import { Subpixel } from './subpixel'
+import { Subpixel, type Source } from './subpixel'
 import { positionOf, resolve, reveal } from './target'
 import { AxisView, Track } from './track'
 import type {
@@ -17,7 +17,7 @@ import type {
   ScrollToOptions,
   TunableOptions,
 } from './types'
-import { takenInside, wheelDelta } from './wheel'
+import { takenInside, wheelDelta, type Inside, type Nested } from './wheel'
 
 /** The curve a timed glide follows unless told otherwise: quick at first, settling softly (an exponential ease-out from 0 to 1). */
 export const easeOut: Easing = (t) => (t >= 1 ? 1 : (1 - 2 ** (-10 * t)) / (1 - 2 ** -10))
@@ -34,8 +34,7 @@ type Turn = { turn: number; sideways: boolean }
 type OlderMediaQueryList = { addListener(listener: () => void): void; removeListener(listener: () => void): void }
 
 /** The options as Svifa uses them, every default filled in. */
-type Settings = Required<Omit<SvifaOptions, 'scroller' | 'duration' | 'native' | 'subpixel'>> &
-  Pick<SvifaOptions, 'duration' | 'native' | 'subpixel'>
+type Settings = Required<Omit<SvifaOptions, 'scroller' | 'duration' | 'native'>> & Pick<SvifaOptions, 'duration' | 'native'>
 /** The options in use, every default filled in (read only: change them with `configure`). */
 export type ResolvedOptions = Readonly<Settings>
 
@@ -50,6 +49,18 @@ const SCROLL_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp'
 
 // The Svifa on each scroller: one only, since two would each move it and each keep its own classes on it.
 const installed = new WeakMap<HTMLElement, Svifa>()
+
+// Set while a Svifa makes one for a scrolling box inside it.
+let forBox = false
+
+// At most this many boxes are given a Svifa ahead of the wheel when the page is chosen (any other gets one when the wheel first turns
+// over it, to glide it).
+const READY_BOXES = 64
+
+// The options a Svifa made for a box takes from the one that made it, now and whenever they change.
+const PASSED = ['lerp', 'duration', 'easing', 'wheel', 'wheelSpeed', 'nested', 'native', 'snap'] as const
+
+const SIDEWAYS = new Set(['auto', 'scroll', 'overlay'])
 
 // Gives keyboard focus to the place a link leads to, without scrolling: an element that cannot take focus takes it for as long as it
 // keeps it (tabindex -1 until it loses focus), so the next Tab carries on from there.
@@ -67,6 +78,34 @@ const finiteOr = (value: number | undefined, fallback: number) => (Number.isFini
 const lerpOr = (value: number | undefined, fallback: number) =>
   Number.isFinite(value) && (value as number) > 0 ? Math.min(value as number, 1) : fallback
 const durationOr = (value: number | undefined) => (Number.isFinite(value) && (value as number) > 0 ? value : undefined)
+// The least a glide drawn on whole pixels moves, in CSS pixels a second: one pixel a sixtieth of a second. A curve that slows to a
+// stop creeps up on its end, and on whole pixels (without subpixel, and in Firefox, which at a screen scale of 100% draws whole
+// pixels) the creep is the jitter at the end of a glide: the page stands still for longer and longer, then hops a pixel. Held to
+// this pace, its last pixels come one every sixtieth of a second or sooner, at any refresh rate. Drawn between pixels, a glide
+// slows to a stop along its own curve.
+const PACE = 60
+
+// Where a glide moves this frame from `value`: where its curve puts it (`next`), but at least `least` closer to `to`, heading `way`
+// (+1 or -1), and never past `to` by that rule. Past `to` (an easing that overshoots on purpose) the curve is followed as it is. A
+// place short of `to` by no more than the rounding of the sums that led there is `to`.
+const paced = (value: number, next: number, to: number, way: number, least: number) => {
+  if (way === 0) return to
+  if ((value - to) * way > 0) return next
+  const moved = way > 0 ? Math.max(next, Math.min(to, value + least)) : Math.min(next, Math.max(to, value - least))
+  return Math.abs(to - moved) < 1e-9 ? to : moved
+}
+
+// The subpixel option as given: a selector, a list or a function names the elements; false, null or '' draws on whole pixels; anything
+// else (true, or left out) lets Svifa choose them.
+const subpixelOr = (value: unknown): Settings['subpixel'] => {
+  if (value === false || value === null || value === '') return false
+  const names = typeof value === 'string' || typeof value === 'function'
+  return names || (typeof value === 'object' && value !== null && Symbol.iterator in value) ? (value as Settings['subpixel']) : true
+}
+// The nested option as given, or gliding boxes for anything that is not one of its forms.
+const nestedOr = (value: unknown): Nested =>
+  value === false || value === 'native' || typeof value === 'function' ? (value as Nested) : true
+
 // An easing given as an option, or the fallback when it is not a function (a script build is given whatever a page passes).
 const easingOr = (value: Easing | undefined, fallback: Easing) => (typeof value === 'function' ? value : fallback)
 // The axis given as an option, or vertical for anything else.
@@ -115,6 +154,14 @@ export class Svifa {
   private readonly main: Track
   private readonly views: Map<Track, AxisView>
   private readonly layer: Subpixel | null
+  // Firefox, which at a screen scale of 100% draws whole pixels whatever it is asked
+  private readonly firefox: boolean
+  // the glide under way is drawn between pixels
+  private between = false
+  // made by another Svifa for a scrolling box inside its scroller: it touches nothing but the box's scrolling and its layers
+  private readonly automatic: boolean
+  // the Svifas this one made for scrolling boxes inside it, each with the feel the nested option gave it
+  private readonly children = new Map<Svifa, TunableOptions | null>()
   private readonly reduced: MediaQueryList | null
   private readonly listeners = new Map<SvifaEvent, Set<(svifa: Svifa) => void>>()
 
@@ -137,6 +184,9 @@ export class Svifa {
     if (typeof window === 'undefined') {
       throw new Error('Svifa runs in the browser: create it in client-side code (in React, inside useEffect).')
     }
+    const forBoxNow = forBox
+    this.automatic = forBoxNow
+    forBox = false
     this.settings = {
       axis: axisOf(options.axis),
       lerp: lerpOr(options.lerp, 0.1),
@@ -144,10 +194,10 @@ export class Svifa {
       easing: easingOr(options.easing, easeOut),
       wheel: options.wheel ?? true,
       wheelSpeed: finiteOr(options.wheelSpeed, 1),
-      nested: options.nested ?? true,
+      nested: nestedOr(options.nested),
       native: options.native,
       chain: options.chain ?? true,
-      subpixel: options.subpixel,
+      subpixel: subpixelOr(options.subpixel),
       anchors: options.anchors ?? false,
       snap: options.snap === true,
       reducedMotion: options.reducedMotion ?? true,
@@ -157,7 +207,9 @@ export class Svifa {
     this.area = new Scroller(options.scroller, axis === 'horizontal' ? 'horizontal' : 'vertical')
     const other = installed.get(this.area.root)
     if (other && !other.destroyed) {
-      throw new Error('Svifa: this scroller already has a Svifa. Destroy that one before creating another.')
+      // one made for a box gives way to one made for it on purpose
+      if (!other.automatic) throw new Error('Svifa: this scroller already has a Svifa. Destroy that one before creating another.')
+      other.destroy()
     }
     installed.set(this.area.root, this)
     // both ways: the same element, read and moved sideways as well
@@ -167,15 +219,23 @@ export class Svifa {
     this.main = this.tracks[0]
     this.views = new Map(this.tracks.map((track) => [track, new AxisView(track)]))
     // Drawing between pixels needs the translate property (every browser since 2022); without it, and for a right-to-left horizontal
-    // scroller, the browser's own drawing stands.
-    const translates = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('translate', '1px')
+    // scroller, the browser's own drawing stands. Svifa chooses no elements where drawing between pixels shows nothing: in Firefox,
+    // and on a device with only a touch screen, where nothing glides under a finger.
+    const supports = typeof CSS !== 'undefined' && typeof CSS.supports === 'function'
+    const translates = supports && CSS.supports('translate', '1px')
     const forward = areas.every((area) => !area.reversed)
-    this.layer = options.subpixel && translates && forward ? new Subpixel(options.subpixel, areas) : null
-    // matchMedia is missing in some test environments (jsdom): motion is then taken as not reduced
-    this.reduced =
-      this.settings.reducedMotion && typeof window.matchMedia === 'function'
-        ? window.matchMedia('(prefers-reduced-motion: reduce)')
+    this.firefox = supports && CSS.supports('-moz-appearance', 'none')
+    // matchMedia is missing in some test environments (jsdom): a pointer is then taken as there, and motion as not reduced
+    const media = typeof window.matchMedia === 'function'
+    const pointer = !media || window.matchMedia('(any-pointer: fine)').matches
+    const given = this.settings.subpixel
+    const source: Source | null = given === false ? null : given === true ? (this.firefox || !pointer ? null : 'auto') : given
+    this.layer =
+      source !== null && translates && forward
+        ? new Subpixel(source, areas, { gliding: () => this.isGliding, chosen: (boxes) => this.chose(boxes), quiet: forBoxNow })
         : null
+    this.reduced = this.settings.reducedMotion && media ? window.matchMedia('(prefers-reduced-motion: reduce)') : null
+    this.layer?.enable(!this.reduced?.matches)
 
     const events = this.area.events
     events.addEventListener('wheel', this.onWheel as EventListener, { passive: false })
@@ -192,7 +252,7 @@ export class Svifa {
       else (this.reduced as unknown as OlderMediaQueryList).addListener(this.onMotionSetting)
     }
     // a framework that writes the class attribute itself (a theme on <html>) would wipe Svifa's classes, and with them svifa-stopped
-    if (typeof MutationObserver === 'function') {
+    if (typeof MutationObserver === 'function' && !this.automatic) {
       this.keeper = new MutationObserver(() => this.mark())
       this.keeper.observe(this.area.root, { attributes: true, attributeFilter: ['class'] })
     }
@@ -295,7 +355,7 @@ export class Svifa {
     }
     const there = (track: Track, i: number) => {
       const goal = goals[i]
-      return goal === undefined || Math.abs(goal - track.value) < 0.5 / devicePixelRatio
+      return goal === undefined || Math.abs(goal - track.value) < 0.5 / placesPerPixel()
     }
     if (!this.isGliding && this.tracks.every(there)) return Promise.resolve(true)
 
@@ -333,7 +393,13 @@ export class Svifa {
     if ('easing' in changes) settings.easing = easingOr(changes.easing, easeOut)
     if ('wheel' in changes) settings.wheel = changes.wheel !== false
     if ('wheelSpeed' in changes) settings.wheelSpeed = finiteOr(changes.wheelSpeed, settings.wheelSpeed)
-    if ('nested' in changes) settings.nested = changes.nested !== false
+    if ('nested' in changes) {
+      settings.nested = nestedOr(changes.nested)
+      // the boxes inside are given their Svifas again, as the new setting says
+      for (const child of this.children.keys()) child.destroy()
+      this.children.clear()
+      this.layer?.again()
+    }
     if ('native' in changes) settings.native = changes.native
     if ('chain' in changes) settings.chain = changes.chain !== false
     if ('snap' in changes) settings.snap = changes.snap === true
@@ -342,6 +408,13 @@ export class Svifa {
       settings.anchors = changes.anchors ?? false
       if (!had && settings.anchors) document.addEventListener('click', this.onClick)
       if (had && !settings.anchors) document.removeEventListener('click', this.onClick)
+    }
+    // the Svifas made for boxes inside feel the same, but for what the nested option gave each of its own
+    for (const [child, feel] of this.children) {
+      if (child.destroyed) continue
+      const passed: Record<string, unknown> = {}
+      for (const key of PASSED) if (key in changes) passed[key] = changes[key]
+      child.configure({ ...passed, ...feel })
     }
   }
 
@@ -373,6 +446,8 @@ export class Svifa {
    * your own frame loop every frame.
    */
   raf(time: number): void {
+    // the Svifas made for boxes inside move on the same frames (with autoRaf off, this is the only call they get)
+    if (!this.settings.autoRaf) for (const child of this.children.keys()) if (!child.destroyed) child.raf(time)
     const dt = this.lastTime === null ? 0 : Math.max(0, (time - this.lastTime) / 1000)
     this.lastTime = time
     if (!this.isGliding) return
@@ -394,7 +469,7 @@ export class Svifa {
     }
 
     const aimed = this.tracks.map((track) => track.motion?.to)
-    const learned = this.draw()
+    const learned = this.draw(done)
     const finished: Track[] = []
     for (const [i, track] of this.tracks.entries()) {
       const motion = track.motion
@@ -433,8 +508,10 @@ export class Svifa {
   destroy(): void {
     if (this.destroyed) return
     if (installed.get(this.area.root) === this) installed.delete(this.area.root)
+    for (const child of this.children.keys()) child.destroy()
+    this.children.clear()
     this.halt()
-    this.layer?.clear()
+    this.layer?.destroy()
     this.destroyed = true
     if (this.frame) cancelAnimationFrame(this.frame)
     this.frame = 0
@@ -455,7 +532,7 @@ export class Svifa {
     }
     this.keeper?.disconnect()
     this.listeners.clear()
-    this.area.root.classList.remove(...CLASSES)
+    if (!this.automatic) this.area.root.classList.remove(...CLASSES)
     // the sideways scroller first, so what both changed is put back last by the main one, as it was before either
     for (let i = this.tracks.length - 1; i >= 0; i--) this.tracks[i].area.destroy()
   }
@@ -472,11 +549,17 @@ export class Svifa {
     const root = this.area.root
     const delta = wheelDelta(event, { width: root.clientWidth, height: root.clientHeight })
     const turns = this.tracks.length > 1 ? this.turnsBoth(event, delta) : this.turnOne(delta)
-    if (!turns) return
-    // a box inside that can still move the way the wheel turned takes it itself
-    for (const { turn, sideways } of turns) {
-      if (turn !== 0 && takenInside(event, root, sideways, turn, this.settings.nested, this.settings.native)) return
+    // a box inside that can still move the way the wheel turned takes it itself: also a sideways turn, which a scroller that moves
+    // only up and down leaves alone
+    const sideways = Math.abs(delta.x) > Math.abs(delta.y) ? [{ turn: delta.x, sideways: true }] : null
+    for (const { turn, sideways: across } of turns ?? sideways ?? []) {
+      if (turn === 0) continue
+      const inside = takenInside(event, root, across, turn, this.settings.nested, this.settings.native)
+      if (inside === null) continue
+      if (inside !== 'native') this.passOn(inside, event)
+      return
     }
+    if (!turns) return
 
     if (holding) {
       event.preventDefault()
@@ -513,6 +596,94 @@ export class Svifa {
     event.preventDefault()
     const how = { lerp: this.settings.lerp, duration: this.settings.duration, easing: this.settings.easing }
     this.glideTo(goals, how, false, event.timeStamp)
+  }
+
+  // A box inside glides this turn itself. One that has a Svifa already had the turn first (its listener is nearer the target) and left
+  // it to the browser; one that has none is given one, which takes this first turn.
+  private passOn({ box, feel }: Inside, event: WheelEvent) {
+    const own = installed.get(box)
+    if (own && !own.destroyed) return
+    this.prune()
+    this.makeChild(box, feel)?.onWheel(event)
+  }
+
+  // A Svifa for a scrolling box inside, with this one's feel (and the box's own, from the nested option). It moves the box both ways
+  // when the box scrolls sideways too, and lets the wheel go on to whatever is around the box at its end, as the browser does.
+  private makeChild(box: HTMLElement, feel: TunableOptions | null): Svifa | null {
+    const style = getComputedStyle(box)
+    const sideways = SIDEWAYS.has(style.overflowX) && box.scrollWidth - box.clientWidth >= 1
+    const tuned: Record<string, unknown> = {}
+    for (const key of PASSED) tuned[key] = this.settings[key]
+    let child: Svifa
+    forBox = true
+    try {
+      child = new Svifa({
+        ...tuned,
+        ...feel,
+        scroller: box,
+        axis: sideways ? 'both' : 'vertical',
+        chain: true,
+        anchors: false,
+        subpixel: this.settings.subpixel !== false,
+        reducedMotion: this.settings.reducedMotion,
+        autoRaf: this.settings.autoRaf,
+      })
+    } catch {
+      return null
+    } finally {
+      forBox = false
+    }
+    // on this one's clock, so a glide it starts in the middle of this one's frames moves from its first frame
+    child.lastTime = this.lastTime
+    this.children.set(child, feel)
+    return child
+  }
+
+  // The layer chose its elements again: the subpixel class follows, and each scrolling box found inside gets a Svifa of its own now,
+  // so its layers are ready before the wheel first turns over it. A box the wheel does not glide gets one too, which only draws: the
+  // browser draws a box with layers inside on whole pixels, and its Svifa puts back the part of a pixel this one draws around it.
+  private chose(boxes: HTMLElement[]) {
+    this.mark()
+    this.prune()
+    let made = 0
+    for (const box of boxes) {
+      if (made >= READY_BOXES) break
+      const own = installed.get(box)
+      if (own && !own.destroyed) continue
+      const feel = this.settings.wheel ? this.boxFeel(box) : false
+      if (this.makeChild(box, feel === false ? { wheel: false } : feel)) made++
+    }
+  }
+
+  // How a box found inside glides, as the nested option and the native markers decide: false when it does not glide on its own.
+  private boxFeel(box: HTMLElement): TunableOptions | null | false {
+    for (let node: Element | null = box; node && node !== this.area.root; node = node.parentElement) {
+      if (node.hasAttribute('data-svifa-native') || this.settings.native?.(node)) return false
+    }
+    const nested = this.settings.nested
+    if (nested === false || nested === 'native') return false
+    const decided = typeof nested === 'function' ? nested(box) : true
+    if (decided === false || decided === 'native') return false
+    return typeof decided === 'object' && decided !== null ? decided : null
+  }
+
+  // This scroller's content was drawn between pixels a frame (or came to rest): the Svifas made for boxes inside it, and those inside
+  // them, draw again what their content needs to move with it.
+  private followInside() {
+    for (const child of this.children.keys()) {
+      if (child.destroyed) continue
+      child.layer?.follow()
+      child.followInside()
+    }
+  }
+
+  // Forgets the Svifas made for boxes that are gone, or have one made for them on purpose (a map lets go of keys as it is walked).
+  private prune() {
+    for (const child of this.children.keys()) {
+      if (!child.destroyed && child.area.root.isConnected) continue
+      child.destroy()
+      this.children.delete(child)
+    }
   }
 
   // A turn of the wheel on an axis Svifa snaps. The scroller goes where the wheel would take it without snapping (`free`), and rests
@@ -575,10 +746,13 @@ export class Svifa {
     if (known !== undefined) return known
     const before = this.tracks.map((each) => each.area.position)
     this.quietEnd = true
-    const rest = this.area.withSnap(() => {
-      track.area.put(place)
-      return track.area.position
-    })
+    // asked with nothing drawn between pixels: the browser places snap points where the content is drawn
+    const ask = () =>
+      this.area.withSnap(() => {
+        track.area.put(place)
+        return track.area.position
+      })
+    const rest = this.layer ? this.layer.bare(ask) : ask()
     for (const [i, each] of this.tracks.entries()) {
       each.area.put(before[i])
       if (!each.motion) each.written = before[i]
@@ -725,7 +899,8 @@ export class Svifa {
     for (const track of this.tracks) track.area.measure()
   }
 
-  // The reader turned reduced motion on or off: a glide under way finishes at once, and the subpixel class follows the setting.
+  // The reader turned reduced motion on or off: a glide under way finishes at once, and the layers and the subpixel class follow the
+  // setting.
   private onMotionSetting = () => {
     if (this.reduced?.matches && this.isGliding) {
       const finish = this.finish
@@ -733,6 +908,7 @@ export class Svifa {
       this.jumpTo(this.tracks.map((track) => (track.motion ? track.goal : undefined)))
       finish?.(true)
     }
+    this.layer?.enable(!this.reduced?.matches)
     this.mark()
   }
 
@@ -788,7 +964,10 @@ export class Svifa {
     this.quietEnd = true
     // the browser's snapping would put every frame on a snap point: it is held off until the glide rests on the place it is aimed at
     if (this.area.snaps) this.area.holdSnap(true)
-    this.layer?.begin(!this.isGliding)
+    const fresh = !this.isGliding
+    this.layer?.begin(fresh)
+    // drawn between pixels or on whole pixels, the same way all through a glide
+    if (fresh) this.between = Boolean(this.layer?.active)
     for (const [i, track] of this.tracks.entries()) {
       const goal = goals[i]
       if (goal === undefined) continue
@@ -799,15 +978,19 @@ export class Svifa {
       if (!track.motion) {
         track.origin = track.area.position
         track.moved = false
+        // drawn between pixels from rest, the content starts where the browser draws it
+        track.lastValue = track.value
+        track.lastOffset = track.area.drawnAt(track.value) - track.value
+        track.blendTo = Number.NaN
       }
-      const to = this.layer ? track.area.restingPlace(goal) : goal
+      const to = this.between ? track.area.restingPlace(goal) : goal
       if (how.duration !== undefined) {
         track.motion = { kind: 'timed', from: track.value, to, duration: how.duration, easing: how.easing ?? easeOut, elapsed: 0 }
       } else {
         track.motion = { kind: 'lerp', to, rate: (how.lerp ?? this.settings.lerp) * 60 }
       }
     }
-    this.settle = this.layer?.settle
+    this.settle = this.between ? this.layer?.settle : undefined
     this.mark()
     this.run(since)
   }
@@ -816,13 +999,18 @@ export class Svifa {
   private step(track: Track, dt: number) {
     const motion = track.motion
     if (!motion) return true
+    // the least pace keeps a glide drawn on whole pixels from creeping; drawn between pixels, its curve slows to a stop as it is
+    const least = !this.between || this.firefox ? PACE * dt : 0
     if (motion.kind === 'timed') {
       motion.elapsed += dt
       const t = Math.min(1, motion.elapsed / motion.duration)
-      track.value = t >= 1 ? motion.to : motion.from + (motion.to - motion.from) * motion.easing(t)
-      return t >= 1
+      const curve = t >= 1 ? motion.to : motion.from + (motion.to - motion.from) * motion.easing(t)
+      // held to the pace, an easing that starts or ends slowly arrives a little before its time
+      track.value = paced(track.value, curve, motion.to, Math.sign(motion.to - motion.from), least)
+      return t >= 1 || track.value === motion.to
     }
-    track.value = motion.to + (track.value - motion.to) * Math.exp(-motion.rate * dt)
+    const curve = motion.to + (track.value - motion.to) * Math.exp(-motion.rate * dt)
+    track.value = paced(track.value, curve, motion.to, Math.sign(motion.to - track.value), least)
     if (!this.arrived(track, motion.to)) return false
     track.value = motion.to
     return true
@@ -832,17 +1020,36 @@ export class Svifa {
   // draw it on the same device pixel as its end.
   private arrived(track: Track, to: number) {
     if (this.settle !== undefined) return Math.abs(to - track.value) <= this.settle
-    return track.area.restingPlace(track.value) === track.area.restingPlace(to)
+    return track.area.samePlace(track.value, to)
   }
 
-  // Draws every moving axis where it is now. Returns, for each, whether this move showed that the browser keeps whole CSS pixels.
-  private draw(): boolean[] {
+  // Where a glide drawn between pixels draws the content now. Zoomed to a part of a pixel, the browser draws a scroll position up to
+  // half a device pixel off it (see drawnAt), at rest as well: so the content is drawn that much off the glide's place, the amount
+  // moving evenly from what it was when the glide (or its latest end) began to what it will be at the end, where the browser takes
+  // over with nothing left to draw. The glide's place itself, which Svifa reports, stays as it is.
+  private drawnPlace(track: Track, to: number) {
+    const area = track.area
+    if (to !== track.blendTo) {
+      track.blendTo = to
+      track.blendFrom = track.lastValue
+      track.blendOffset = track.lastOffset
+    }
+    const span = to - track.blendFrom
+    const share = span === 0 ? 1 : Math.min(1, Math.max(0, (track.value - track.blendFrom) / span))
+    return track.value + track.blendOffset + (area.drawnAt(to) - to - track.blendOffset) * share
+  }
+
+  // Draws every moving axis where it is now (an axis whose glide is `done` is put at its end). Returns, for each, whether this move
+  // showed that the browser keeps whole CSS pixels.
+  private draw(done: boolean[]): boolean[] {
     this.quietEnd = true
-    const learned = this.tracks.map((track) => {
+    const learned = this.tracks.map((track, i) => {
       const motion = track.motion
       if (!motion) return false
       const area = track.area
-      const shown = area.moveTo(track.value)
+      // at its end, the scroller is put on the place it rests on, where the browser draws the content as the glide has it
+      const at = this.between ? this.drawnPlace(track, motion.to) : track.value
+      const shown = done[i] && this.between ? area.moveTo(motion.to, true, area.drawnAt(motion.to)) : area.moveTo(at, this.between)
       const actual = area.position
       // Held short of the place written, at the page's real end: the page ends nearer than it did when the glide began (its height is
       // not a whole pixel, or content went away). The glide ends where the page ends, and is never drawn past it.
@@ -850,18 +1057,44 @@ export class Svifa {
         track.goal = Math.min(track.goal, actual)
         motion.to = Math.min(motion.to, actual)
         track.value = Math.min(track.value, actual)
+      } else if (this.between && track.value > actual && actual >= area.limit - 1) {
+        // Drawn between pixels, the scroller is put at or before the place, so a page that grew shorter by less than a pixel is not
+        // seen holding it short: within a pixel of the end, the end is measured, and the content never drawn past it.
+        const end = area.measure()
+        if (track.value > end) {
+          track.goal = Math.min(track.goal, end)
+          motion.to = Math.min(motion.to, area.restingPlace(end))
+          track.value = end
+        }
       }
       track.written = actual
       if (actual !== track.origin) track.moved = true
       return shown
     })
-    this.layer?.place(
-      this.tracks.map((track) => track.value),
-      this.tracks.map((track) => track.written ?? track.area.position)
-    )
-    // the browser turned out to keep whole CSS pixels: aim the glide under way at a place it can rest on
+    if (this.between) {
+      // each axis is drawn where its glide draws it (one at rest stays where the browser draws it), from where the browser draws its
+      // scroll position
+      const wanted = this.tracks.map((track) => {
+        if (!track.motion) return track.area.drawnAt(track.area.position)
+        const at = this.drawnPlace(track, track.motion.to)
+        track.lastValue = track.value
+        track.lastOffset = at - track.value
+        return at
+      })
+      this.layer?.place(
+        wanted,
+        this.tracks.map((track) => (track.area.short ? null : track.area.drawnAt(track.written ?? track.area.position)))
+      )
+      this.followInside()
+    }
+    // the browser turned out to keep whole CSS pixels: aim the glide under way at a place it can rest on. Until now it was aimed at
+    // the nearest device pixel, which zoomed to a part of a pixel can lie past that place (at 125%, 6.4 for a glide sent to 6): a
+    // glide already past it is held there, so it is never reported past where it will rest
     for (const [i, track] of this.tracks.entries()) {
-      if (learned[i] && this.layer && track.motion) track.motion.to = track.area.restingPlace(track.goal)
+      const motion = track.motion
+      if (!learned[i] || !this.between || !motion) continue
+      motion.to = track.area.restingPlace(track.goal)
+      if ((track.value - motion.to) * track.report.direction > 0) track.value = motion.to
     }
     return learned
   }
@@ -871,6 +1104,7 @@ export class Svifa {
     this.fromScrollTo = false
     for (const track of this.tracks) track.report.velocity = 0
     this.layer?.clear()
+    this.followInside()
     this.area.holdSnap(false)
     this.mark()
     const finish = this.finish
@@ -898,6 +1132,7 @@ export class Svifa {
     this.fromScrollTo = false
     this.quietEnd = false
     this.layer?.clear()
+    this.followInside()
     this.area.holdSnap(false)
     this.mark()
     const finish = this.finish
@@ -940,15 +1175,16 @@ export class Svifa {
     if (set) for (const listener of [...set]) listener(this)
   }
 
-  // The classes on the scroller's element: svifa (installed), svifa-gliding, svifa-stopped, and svifa-subpixel while Svifa can draw
-  // between pixels (not while the reader asks for reduced motion, when it never glides). toggle() with a state touches the attribute
-  // only when that class changes, so nothing else on the page is restyled and the keeper above never sees a change of Svifa's own.
+  // The classes on the scroller's element: svifa (installed), svifa-gliding, svifa-stopped, and svifa-subpixel while Svifa draws
+  // between pixels (elements are chosen, and the reader does not ask for reduced motion, when it never glides). toggle() with a state
+  // touches the attribute only when that class changes, so nothing else on the page is restyled and the keeper above never sees a
+  // change of Svifa's own. A Svifa made for a box puts none on it.
   private mark() {
-    if (this.destroyed) return
+    if (this.destroyed || this.automatic) return
     const list = this.area.root.classList
     list.toggle('svifa', true)
     list.toggle('svifa-gliding', this.isGliding)
     list.toggle('svifa-stopped', this.stopped)
-    list.toggle('svifa-subpixel', this.layer !== null && !this.reduced?.matches)
+    list.toggle('svifa-subpixel', Boolean(this.layer?.active))
   }
 }

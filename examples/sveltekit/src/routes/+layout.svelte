@@ -9,7 +9,7 @@
   let { children } = $props()
 
   // the page glides, and so do same-page links, stopping below the sticky header
-  smoothScroll({ subpixel: 'main > section', anchors: { offset: -56 } })
+  smoothScroll({ anchors: { offset: -56 } })
 </script>
 
 {@render children()}

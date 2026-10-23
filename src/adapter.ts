@@ -21,14 +21,22 @@ export const feelOf = (options: TunableOptions): TunableOptions => ({
 
 /** What `subpixel` names, for telling whether it changed: a selector by its text; a list or a function is read afresh anyway. */
 export const subpixelKey = (subpixel: SvifaOptions['subpixel']): string =>
-  typeof subpixel === 'string' ? subpixel : subpixel === undefined ? '' : 'given'
+  typeof subpixel === 'string'
+    ? `selector ${subpixel}`
+    : subpixel === false
+      ? 'off'
+      : subpixel === undefined || subpixel === true
+        ? 'chosen'
+        : 'given'
 
-/** The `subpixel` to make a Svifa with: a selector as it is; a list or a function read through `latest` each time Svifa asks. */
+/** The `subpixel` to make a Svifa with: true, false or a selector as it is; a list or a function read through `latest` each time. */
 export function subpixelOf(latest: () => SvifaOptions['subpixel']): SvifaOptions['subpixel'] {
   const given = latest()
-  if (given === undefined || typeof given === 'string') return given
+  if (given === undefined || typeof given === 'string' || typeof given === 'boolean') return given
   return () => {
     const now = latest()
-    return typeof now === 'function' ? now() : typeof now === 'string' ? document.querySelectorAll(now) : (now ?? [])
+    if (typeof now === 'function') return now()
+    if (typeof now === 'string') return document.querySelectorAll(now)
+    return typeof now === 'object' && now !== null ? now : []
   }
 }

@@ -9,6 +9,13 @@ let instantKnown: boolean | undefined
 const SCROLLS = ['auto', 'scroll', 'overlay']
 
 /**
+ * The finest grid a browser keeps a scroll position on, in places per CSS pixel: device pixels. Zoomed out, a device pixel spans
+ * more than one CSS pixel, and Chrome keeps the scroller on those (at 80%, every 1.25 CSS pixels); a browser that keeps whole CSS
+ * pixels instead is learned from where it puts the scroller (see Scroller.moveTo).
+ */
+export const placesPerPixel = (): number => devicePixelRatio || 1
+
+/**
  * The thing that scrolls, read and moved along one axis: the page or a scrolling element. Everything Svifa asks of it goes through
  * here, so nothing else has to tell the two apart.
  */
@@ -23,8 +30,10 @@ export class Scroller {
   /** A horizontal scroller in right-to-left content: the browser counts its position from 0 down to minus the limit. */
   readonly reversed: boolean
   private max = 0
-  // the browser keeps the scroller on whole CSS pixels rather than device pixels (learned from where it puts it)
+  // the browser keeps the scroller on whole CSS pixels rather than device pixels, or has kept a place between two whole CSS
+  // pixels as written so keeps device pixels (each learned from where it puts it)
   private coarse = false
+  private fine = false
   // the page's own inline scroll-behavior, put back on destroy when an old browser needed it overridden
   private restoreBehavior: string | null = null
   // the scroller's own inline scrollbar-gutter while Svifa holds a scrollbar's room (see holdGutter)
@@ -80,18 +89,55 @@ export class Scroller {
    * browser that keeps those.
    */
   restingPlace(position: number): number {
-    const per = this.coarse ? 1 : devicePixelRatio || 1
+    const per = this.coarse ? 1 : placesPerPixel()
     const place = Math.round(position * per) / per
     return place > this.max ? Math.floor(this.max * per) / per : place
   }
 
   /**
-   * Puts the scroller at once (with no animation of the browser's own) on the place of its grid nearest `position`: written that way,
-   * a browser that cuts a position down (WebKit) lands where one that rounds it would. Returns true when this move showed that the
-   * browser keeps whole CSS pixels, so a glide aimed at a device pixel must be aimed again.
+   * The place on the browser's grid at or before `position` (within rounding), never past the end, where the browser draws the
+   * content at or before `drawn`: the content drawn between pixels from there is moved toward the start, never past its own end.
+   * Moved the other way, it would make the page that much longer, and the browser would let the scroller go further than the page
+   * reaches at rest.
    */
-  moveTo(position: number): boolean {
-    let place = this.restingPlace(Math.max(position, 0))
+  placeBefore(position: number, drawn: number = position): number {
+    const per = this.coarse ? 1 : placesPerPixel()
+    let place = Math.min(Math.floor(position * per + 1e-6) / per, Math.floor(this.max * per) / per)
+    // zoomed to a part of a pixel a whole CSS pixel is drawn up to half a device pixel either way; a few steps back are enough down to
+    // a quarter of a device pixel per CSS pixel
+    for (let step = 0; step < 4 && place > 0 && this.drawnAt(place) > drawn + 1e-6; step++) place -= 1 / per
+    return place
+  }
+
+  /**
+   * Whether `a` and `b` are the same place on the browser's grid. Zoomed to a part of a pixel, until the browser has shown which grid
+   * it keeps, they must be on both: device pixels and whole CSS pixels, so that a glide is never taken to be on its last pixel early
+   * in a browser that keeps whole CSS pixels.
+   */
+  samePlace(a: number, b: number): boolean {
+    if (this.restingPlace(a) !== this.restingPlace(b)) return false
+    return this.coarse || this.fine || Number.isInteger(placesPerPixel()) || Math.round(a) === Math.round(b)
+  }
+
+  /**
+   * Where the browser draws the content with the scroller at `place`: browsers draw a scroll position on whole device pixels, so
+   * zoomed to a part of a pixel (125%, 80%) a whole CSS pixel is drawn up to half a device pixel off it. Worked out as Chrome does,
+   * in single precision and rounded half away from 0: at 90%, 305 pixels make 274.5 device pixels, not the 274.49999 of a double.
+   */
+  drawnAt(place: number): number {
+    const per = devicePixelRatio || 1
+    return Math.round(Math.fround(place * per)) / per
+  }
+
+  /**
+   * Puts the scroller at once (with no animation of the browser's own) on the place of its grid nearest `position`, or at or before it
+   * (`before`, when the rest is drawn between pixels, with the content drawn at or before `drawn`): written that way, a browser that
+   * cuts a position down (WebKit) lands where one that rounds it would. Returns true when this move showed that the browser keeps
+   * whole CSS pixels, so a glide aimed at a device pixel must be aimed again.
+   */
+  moveTo(position: number, before = false, drawn: number = position): boolean {
+    const placeOf = (at: number) => (before ? this.placeBefore(at, drawn) : this.restingPlace(at))
+    let place = placeOf(Math.max(position, 0))
     this.write(place)
     // A browser on the device grid keeps the place as written (read back as a float32 in some, so its rounding is allowed for). One
     // that moves it by less than a pixel keeps whole CSS pixels; a pixel or more is the browser holding the scroller at an end that
@@ -104,10 +150,10 @@ export class Scroller {
       const grid = off > slop(place) && off < 1
       if (grid && (actual > place || (actual > 0 && actual < this.max - 1) || this.goesOn(actual, place))) {
         this.coarse = learned = true
-        // this once, written again on the grid just learned, so the move still lands on the nearest place
-        place = this.restingPlace(Math.max(position, 0))
+        // this once, written again on the grid just learned, so the move still lands on its place
+        place = placeOf(Math.max(position, 0))
         this.write(place)
-      }
+      } else if (off <= slop(place) && Math.abs(place - Math.round(place)) > slop(place)) this.fine = true
     }
     this.short = this.position < place - slop(place)
     return learned

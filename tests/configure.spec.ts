@@ -20,7 +20,8 @@ test('a lower lerp glides longer and softer, a duration sets the time, and both 
   const result = await page.evaluate((source) => {
     const w = window as any
     const rest = new Function(`return ${source}`)() as (w: unknown, g: unknown) => { frames: number; y: number }
-    const g = new w.Svifa({ autoRaf: false })
+    // drawn on whole pixels, where each glide's frames are worked out below
+    const g = new w.Svifa({ autoRaf: false, subpixel: false })
     const normal = rest(w, g)
     g.configure({ lerp: 0.04 })
     const slow = rest(w, g)
@@ -31,8 +32,32 @@ test('a lower lerp glides longer and softer, a duration sets the time, and both 
     g.configure({ lerp: Number.NaN, wheelSpeed: Number.POSITIVE_INFINITY })
     return { normal, slow, timed, back, lerp: g.options.lerp, speed: g.options.wheelSpeed, duration: g.options.duration }
   }, framesToRest)
-  expect(result.slow.frames).toBeGreaterThan(result.normal.frames * 2)
-  expect(result.timed.frames).toBe(30)
+  // each as its curve gives it, frame by frame at 60 Hz, never slower than a pixel a frame (60 px a second); a lerp glide rests on the
+  // frame its place rounds to the goal's pixel, a timed one once it reaches the goal or its time runs out
+  const lerpFrames = (lerp: number) => {
+    let at = 0
+    let n = 0
+    while (Math.round(at) !== 300) {
+      at = Math.max(300 + (at - 300) * Math.exp(-lerp), Math.min(300, at + 1))
+      n++
+    }
+    return n
+  }
+  const timedFrames = (duration: number) => {
+    let at = 0
+    let n = 0
+    // (short of it by no more than rounding is there)
+    for (let t = 1 / 60; at < 300 - 1e-9; t += 1 / 60) {
+      const eased = t >= duration ? 300 : (300 * (1 - 2 ** ((-10 * t) / duration))) / (1 - 2 ** -10)
+      at = Math.max(eased, Math.min(300, at + 1))
+      n++
+    }
+    return n
+  }
+  expect(result.normal.frames).toBe(lerpFrames(0.1))
+  expect(result.slow.frames).toBe(lerpFrames(0.04))
+  expect(result.slow.frames).toBeGreaterThan(result.normal.frames)
+  expect(result.timed.frames).toBe(timedFrames(0.5))
   expect(result.back.frames).toBe(result.normal.frames)
   for (const run of [result.normal, result.slow, result.timed, result.back]) expect(run.y).toBe(300)
   expect(result).toMatchObject({ lerp: 0.1, speed: 1, duration: undefined })
